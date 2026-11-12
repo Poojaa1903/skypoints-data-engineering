@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Raw source files - do not publish
+data/raw/*
+!data/raw/.gitkeep
+
+# Local databases and generated outputs
+*.db
+*.duckdb
+*.log
+outputs/
+reports/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
