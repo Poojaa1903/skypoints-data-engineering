@@ -40,7 +40,7 @@ def test_yyyymmdd_rejects_wrong_shape(raw):
 
 def test_yyyymmdd_rejects_month_13():
     with pytest.raises(InvalidDateError):
-        parse_date("20131013", DateFormat.YYYYMMDD)
+        parse_date("20121313", DateFormat.YYYYMMDD)
 
 
 # --- MMDDYYYY: flat file DOB and USA.xlsx dates -----------------------
