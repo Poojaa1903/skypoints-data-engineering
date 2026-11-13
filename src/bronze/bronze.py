@@ -1,8 +1,8 @@
 """Bronze landing: copy each raw file, unchanged, into a dated folder.
 
 Layout:
-    data/bronze/<feed>/<load_date>/<file>
-    data/bronze/load_log.csv   one row per file landed (what arrived, when, checksum)
+    outputs/bronze/<feed>/<load_date>/<file>
+    outputs/bronze/load_log.csv   one row per file landed (what arrived, when, checksum)
 
 Rules:
 * The file is copied byte for byte. Nothing is parsed, typed or fixed.

@@ -12,7 +12,7 @@ make test
 make run
 ```
 
-`make run` reads `data/input/` and writes `outputs/`. The run date is `2024-01-15`. Change it with `make run AS_OF=2024-06-01`.
+`make run` reads `data/input/`, copies it unchanged into `outputs/bronze/`, and writes `outputs/silver/` and `outputs/gold/`. The run date is `2024-01-15`. Change it with `make run AS_OF=2024-06-01`.
 
 On the sample files the run writes 5 country tables (12 members), 2 quarantined rows, 1 review row (Mike), and 2 redemptions joined to Elena.
 
@@ -24,9 +24,9 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 
 ## Approach
 
-- **Bronze:** raw text, never changed. JSON kept whole.
-- **Silver:** typed rows, age, stale flag. Bad rows go to quarantine and do not stop the run.
-- **Gold:** one member table, plus a view per country (`table_usa`, `table_ind`, ...).
+- **Bronze** (`outputs/bronze/`): raw text, never changed. JSON kept whole. Read from `data/input/`.
+- **Silver** (`outputs/silver/`): typed rows, age, stale flag. Bad rows go to quarantine and do not stop the run.
+- **Gold** (`outputs/gold/`): one table per country, the review list, and redemptions.
 
 ## Decisions
 

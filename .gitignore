@@ -14,11 +14,6 @@ venv/
 data/raw/*
 !data/raw/.gitkeep
 
-# Generated medallion data (rebuilt by make bronze / make run)
-data/bronze/
-data/silver/
-data/gold/
-
 # Local databases and generated outputs
 *.db
 *.duckdb

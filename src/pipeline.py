@@ -91,10 +91,11 @@ def person_key(name: str | None, dob: date | None, *, scope: str, member_id: str
     return f"{scope}:{member_id}"
 
 
-def run(bronze_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAULT_CONFIG) -> PipelineSummary:
-    """Read the files landed in bronze for `as_of` (the load date) and write the outputs."""
+def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_dir: Path = DEFAULT_CONFIG) -> PipelineSummary:
+    """Read the files landed in bronze for `as_of` (the load date) and write silver and gold."""
     lookups = load_lookups(config_dir / "iso_countries.csv", config_dir / "country_aliases.csv")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    silver_dir.mkdir(parents=True, exist_ok=True)
+    gold_dir.mkdir(parents=True, exist_ok=True)
 
     quarantine: list[dict] = []
     candidates: list[Candidate] = []
@@ -181,12 +182,12 @@ def run(bronze_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFA
     summary = PipelineSummary(removals=len(gold.removals))
     for table, members in sorted(gold.tables.items()):
         cands = [by_location[(m.source_file, m.row_num)] for m in members]
-        _write_table(output_dir / f"{table}.csv", cands, as_of)
+        _write_table(gold_dir / f"{table}.csv", cands, as_of)
         summary.tables[table] = len(cands)
 
     # Review list: same name, different person keys (not merged)
     review = _review_rows(candidates)
-    _write_csv(output_dir / "review_possible_moves.csv", ["name", "countries", "member_ids"], review)
+    _write_csv(gold_dir / "review_possible_moves.csv", ["name", "countries", "member_ids"], review)
     summary.review_items = len(review)
 
     # 6. Redemptions
@@ -204,12 +205,12 @@ def run(bronze_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFA
         if c.scope == "FLAT" and c.key in result.winners
     }
     joined = join_to_members(txns, flat_winner)
-    _write_redemptions(output_dir / "redemptions.csv", joined)
+    _write_redemptions(gold_dir / "redemptions.csv", joined)
     summary.matched_redemptions = len(joined.matched)
     summary.orphan_redemptions = len(joined.orphans)
 
     _write_csv(
-        output_dir / "quarantine.csv",
+        silver_dir / "quarantine.csv",
         ["source_file", "row_num", "member_id", "member_name", "rules", "detail"],
         quarantine,
     )
@@ -222,13 +223,17 @@ def main(argv: list[str] | None = None) -> int:
     paths = load_paths()
     parser = argparse.ArgumentParser(description="SkyPoints member pipeline")
     parser.add_argument("--bronze", default=paths["BRONZE_DIR"], type=Path,
-                        help="folder the pipeline reads, from config/paths.env")
-    parser.add_argument("--output", default=paths["OUTPUT_DIR"], type=Path)
+                        help="raw copies bronze wrote; silver reads this")
+    parser.add_argument("--silver", default=paths["SILVER_DIR"], type=Path,
+                        help="where quarantine and cleaned rows are written")
+    parser.add_argument("--gold", default=paths["GOLD_DIR"], type=Path,
+                        help="where country tables, review and redemptions are written")
     parser.add_argument("--as-of", required=True, type=date.fromisoformat)
     args = parser.parse_args(argv)
 
-    summary = run(args.bronze, args.output, args.as_of)
-    print(f"Tables written to {args.output}:")
+    summary = run(args.bronze, args.silver, args.gold, args.as_of)
+    print(f"Silver written to {args.silver}")
+    print(f"Gold tables written to {args.gold}:")
     for table, count in summary.tables.items():
         print(f"  {table}: {count} members")
     print(f"Quarantined rows: {summary.quarantined}")

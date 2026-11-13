@@ -17,7 +17,7 @@ bronze:
 	PYTHONPATH=src $(PY) -m bronze.bronze --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --load-date $(AS_OF)
 
 run: bronze
-	PYTHONPATH=src $(PY) -m pipeline --bronze $(BRONZE_DIR) --output $(OUTPUT_DIR) --as-of $(AS_OF)
+	PYTHONPATH=src $(PY) -m pipeline --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR) --as-of $(AS_OF)
 
 clean:
 	rm -rf $(OUTPUT_DIR) $(BRONZE_DIR) $(SILVER_DIR) $(GOLD_DIR) .pytest_cache
