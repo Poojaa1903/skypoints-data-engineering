@@ -68,8 +68,7 @@ BEGIN
     EXECUTE IMMEDIATE
         'COPY FILES INTO ' || :internal_stage || '/reference/ '
         || 'FROM ' || :source_stage || '/' || :config_dir || '/ '
-        || 'FILES = (''iso_countries.csv'', ''country_aliases.csv'') '
-        || 'OVERWRITE = TRUE';
+        || 'FILES = (''iso_countries.csv'', ''country_aliases.csv'')';
     CALL silver.load_reference();
 
     summary := 'WINDOW ' || TO_VARCHAR(:start_day) || ' through ' || TO_VARCHAR(:end_day);
@@ -101,7 +100,7 @@ BEGIN
                     EXECUTE IMMEDIATE
                         'COPY FILES INTO ' || :internal_stage || '/members_flat/' || :day_path || '/ '
                         || 'FROM ' || :source_stage || '/' || :data_dir || '/ '
-                        || 'FILES = (''members_' || :ymd || '.txt'') OVERWRITE = TRUE';
+                        || 'FILES = (''members_' || :ymd || '.txt'')';
                 END IF;
 
                 IF (EXISTS (
@@ -111,7 +110,7 @@ BEGIN
                     EXECUTE IMMEDIATE
                         'COPY FILES INTO ' || :internal_stage || '/redemptions/' || :day_path || '/ '
                         || 'FROM ' || :source_stage || '/' || :data_dir || '/ '
-                        || 'FILES = (''redemptions_' || :ymd || '.json'') OVERWRITE = TRUE';
+                        || 'FILES = (''redemptions_' || :ymd || '.json'')';
                 END IF;
 
                 IF (EXISTS (
@@ -121,7 +120,7 @@ BEGIN
                     EXECUTE IMMEDIATE
                         'COPY FILES INTO ' || :internal_stage || '/country_xlsx/' || :day_path || '/ '
                         || 'FROM ' || :source_stage || '/' || :seed_dir || '/ '
-                        || 'FILES = (''country_extract_' || :ymd || '.csv'') OVERWRITE = TRUE';
+                        || 'FILES = (''country_extract_' || :ymd || '.csv'')';
                 END IF;
 
                 CALL bronze.load_day(:cur);

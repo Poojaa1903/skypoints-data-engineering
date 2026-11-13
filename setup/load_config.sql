@@ -26,7 +26,7 @@ BEGIN
         SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'SOURCE_STAGE'
     );
     IF (source_stage IS NULL) THEN
-        source_stage := '@skypoints_data_engineering/branches/dev';
+        source_stage := '@SKYPOINTS.PUBLIC."skypoints-data-engineering"/branches/dev';
     END IF;
     internal_stage := COALESCE(
         (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'INTERNAL_STAGE'),
@@ -40,7 +40,7 @@ BEGIN
     EXECUTE IMMEDIATE
         'COPY FILES INTO ' || :internal_stage || '/reference/ '
         || 'FROM ' || :source_stage || '/' || :config_dir || '/ '
-        || 'FILES = (''pipeline.env'') OVERWRITE = TRUE';
+        || 'FILES = (''pipeline.env'')';
 
     CREATE OR REPLACE TEMPORARY TABLE _env_raw (
         setting_key VARCHAR,
