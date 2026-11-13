@@ -53,3 +53,16 @@ CREATE TABLE IF NOT EXISTS gold.redemption (
     modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 )
 CLUSTER BY (txn_date);
+
+-- One row per successful day. Same idea as outputs/gold/<date>/_SUCCESS.
+CREATE TABLE IF NOT EXISTS gold.pipeline_run (
+    load_date            DATE          NOT NULL,
+    finished_at          TIMESTAMP_LTZ NOT NULL,
+    member_count         NUMBER,
+    quarantine_count     NUMBER,
+    redemption_count     NUMBER,
+    status               VARCHAR       NOT NULL,   -- SUCCESS
+    created_at           TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by           VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at          TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+);

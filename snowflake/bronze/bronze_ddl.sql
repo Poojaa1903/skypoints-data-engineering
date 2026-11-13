@@ -108,3 +108,37 @@ CREATE TABLE IF NOT EXISTS bronze.load_audit (
     created_by         VARCHAR       DEFAULT CURRENT_USER(),
     modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );
+
+-- Staging tables used by bronze.load_day while COPY INTO runs.
+-- Truncated at the start of each load. Not part of the lasting bronze store.
+CREATE TABLE IF NOT EXISTS bronze.flat_landing (
+    empty_col          VARCHAR,
+    record_type        VARCHAR,
+    member_name        VARCHAR,
+    member_id          VARCHAR,
+    enrollment_date    VARCHAR,
+    last_flight_date   VARCHAR,
+    tier_code          VARCHAR,
+    agent_name         VARCHAR,
+    state              VARCHAR,
+    country            VARCHAR,
+    dob                VARCHAR,
+    is_active          VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS bronze.country_landing (
+    source_file            VARCHAR,
+    source_country         VARCHAR,
+    row_num                NUMBER,
+    source_member_id       VARCHAR,
+    member_name            VARCHAR,
+    tier_code              VARCHAR,
+    dob_raw                VARCHAR,
+    enrollment_date_raw    VARCHAR,
+    flight_date_raw        VARCHAR,
+    individual_or_corp     VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS bronze.redemption_landing (
+    payload VARIANT
+);

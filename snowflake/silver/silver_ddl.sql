@@ -87,3 +87,18 @@ CREATE TABLE IF NOT EXISTS silver.member_quarantine (
     created_by           VARCHAR       DEFAULT CURRENT_USER(),
     modified_at          TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );
+
+-- Dataset checks for one day. A FAIL stops gold. Same idea as
+-- outputs/silver/<date>/quality_report.csv on the local run.
+CREATE TABLE IF NOT EXISTS silver.quality_report (
+    load_date            DATE          NOT NULL,
+    check_name           VARCHAR       NOT NULL,
+    status               VARCHAR       NOT NULL,   -- PASS / WARN / FAIL
+    value                VARCHAR,
+    threshold            VARCHAR,
+    detail               VARCHAR,
+    created_at           TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by           VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at          TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+)
+CLUSTER BY (load_date);

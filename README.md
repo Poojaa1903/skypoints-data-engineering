@@ -19,7 +19,7 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 ## What runs where
 
 - **Local** (`local/`) is the pipeline you can run and demo. `local/src/` is bronze, silver, gold and the one-day pipeline. `local/utils/backfill.py` decides which days to run. `make test` covers it.
-- **Snowflake** (`snowflake/`) is the same design for a warehouse. Run it in this order: `bronze/bronze_ddl.sql`, `bronze/schema_audit.sql`, `silver/silver_ddl.sql`, `silver/member_typed.sql`, `silver/silver_load.sql`, `gold/gold_ddl.sql`, `gold/latest_and_split.sql`, `gold/redemptions.sql`, `silver/silver_validations.sql`. Empty bronze tables load zero rows. `make test` does not connect to Snowflake.
+- **Snowflake** (`snowflake/`) is the same design for a warehouse. Setup and run steps are in `snowflake/README.md`. After the DDL and stage are in place, `CALL bronze.run_pipeline(DATE '2024-01-15')` lands the day, audits it, loads silver, runs the quality gate, and writes gold. `make test` does not connect to Snowflake.
 - **Shared** (`data/`, `config/iso_countries.csv`, `config/country_aliases.csv`) is used by both. `local/pipeline.env` is local only.
 - **DuckDB** (`local/tests/gold/test_sql_rules.py`) runs the shared expressions (age, stale, latest row, JSON flatten) so those rules are tested without a warehouse. DuckDB does not run the pipeline.
 

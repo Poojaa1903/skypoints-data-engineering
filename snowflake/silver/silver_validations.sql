@@ -3,8 +3,9 @@
 -- other rows; these rows are the ones that belong in quarantine.
 -- Dialect: Snowflake. Run after silver is loaded.
 --
--- The runnable gate is local/utils/quality.py. Thresholds are local/pipeline.env.
--- A FAIL there stops gold. These queries are the same checks for Snowflake.
+-- The runnable gate is silver.quality_gate (snowflake/silver/quality_gate.sql).
+-- Locally the same gate is local/utils/quality.py. A FAIL stops gold.
+-- These queries are ad-hoc checks you can run by hand in a worksheet.
 
 -- 1. Mandatory fields. Member id, name, country and enrollment date.
 SELECT source_file, row_num, 'MEMBER_ID_MISSING' AS reject_rule

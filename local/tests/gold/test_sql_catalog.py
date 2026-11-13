@@ -18,13 +18,22 @@ REFERENCE = re.compile(
 )
 
 
+def _without_line_comments(text: str) -> str:
+    return "\n".join(
+        line.split("--", 1)[0] for line in text.splitlines()
+    )
+
+
 def test_every_referenced_table_is_created():
     created = set()
     referenced = []
     for path in sorted(SQL_ROOT.rglob("*.sql")):
-        text = path.read_text(encoding="utf-8")
+        text = _without_line_comments(path.read_text(encoding="utf-8"))
         created.update(name.lower() for name in CREATE.findall(text))
         for name in REFERENCE.findall(text):
+            # Stage paths are not tables.
+            if name.lower().startswith(("bronze.skypoints", "information_schema")):
+                continue
             referenced.append((path.name, name.lower()))
 
     missing = [(path, name) for path, name in referenced if name not in created]

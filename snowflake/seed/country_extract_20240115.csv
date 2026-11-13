@@ -1,0 +1,10 @@
+source_file,source_country,row_num,source_member_id,member_name,tier_code,dob_raw,enrollment_date_raw,flight_date_raw,individual_or_corp
+AUS.xlsx,AUS,2,1,Mike,PLT,NULL,44692,44774,
+AUS.xlsx,AUS,3,2,Jonnathan,GLD,35777,2021-13-13,44566,
+AUS.xlsx,AUS,4,3,Cristina,SLV,35866,44632,44640,
+IND.xlsx,IND,2,1,Vikas,SLV,36130,44562,44727,I
+IND.xlsx,IND,3,2,Rahul,GLD,30176,44625,44630,C
+IND.xlsx,IND,4,3,Sameer,GLD,19219,44612,44617,I
+USA.xlsx,USA,2,1,Sam,PLT,,6152022,8202022,
+USA.xlsx,USA,3,2,John,SLV,,1052022,1152022,
+USA.xlsx,USA,4,3,Mike,GLD,,12282021,12302021,
