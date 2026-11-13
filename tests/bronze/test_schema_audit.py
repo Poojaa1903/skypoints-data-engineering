@@ -4,7 +4,7 @@ import csv
 from datetime import date
 from pathlib import Path
 
-from backfill import backfill
+from utils.backfill import backfill
 from bronze.schema_audit import audit_day
 
 START = date(2024, 1, 15)

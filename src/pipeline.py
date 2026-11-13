@@ -35,8 +35,8 @@ from silver.countries import load_lookups, resolve_country
 from silver.derived import age_on, is_stale_member
 from silver.parsers import DateFormat, parse_date
 from silver.validations import RawMember, SourceFormats, duplicate_keys, validate_member
-from quality import FileVolume, QualityFacts, evaluate, failed, load_limits, previous_member_count, write_report
-from settings import load_paths, previous_day
+from utils.quality import FileVolume, QualityFacts, evaluate, failed, load_limits, previous_member_count, write_report
+from utils.settings import load_paths, previous_day
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config"
 

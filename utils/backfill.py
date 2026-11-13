@@ -27,7 +27,7 @@ from bronze.bronze import CONFLICT, land_window
 from bronze.bronze import LandingResult
 from bronze.schema_audit import FAILED, audit_day
 from pipeline import run
-from settings import load_paths, monitoring_date, previous_day
+from utils.settings import load_paths, monitoring_date, previous_day
 
 SUCCESS = "_SUCCESS"
 

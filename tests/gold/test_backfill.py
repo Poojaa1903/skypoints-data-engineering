@@ -3,8 +3,8 @@
 from datetime import date
 from pathlib import Path
 
-from backfill import backfill
-from settings import load_env, load_paths, monitoring_date
+from utils.backfill import backfill
+from utils.settings import load_env, load_paths, monitoring_date
 
 START = date(2024, 1, 15)
 END = date(2024, 1, 20)

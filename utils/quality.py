@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from settings import PROJECT_ROOT
+from utils.settings import PROJECT_ROOT
 
 QUALITY_FILE = PROJECT_ROOT / "config" / "quality.env"
 REPORT_COLUMNS = ["check", "status", "value", "threshold", "detail"]

@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from settings import load_paths, previous_day
+from utils.settings import load_paths, previous_day
 
 LOG_COLUMNS = [
     "feed", "source_file", "bronze_path", "load_date", "run_date",

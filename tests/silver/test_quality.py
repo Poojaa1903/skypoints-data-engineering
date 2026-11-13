@@ -5,7 +5,7 @@ from pathlib import Path
 
 from bronze.bronze import land_files
 from pipeline import run
-from quality import (
+from utils.quality import (
     FAIL,
     PASS,
     WARN,

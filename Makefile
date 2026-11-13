@@ -14,10 +14,10 @@ test:
 
 # Restore gaps from MONITORING_DATE through yesterday.
 bronze:
-	PYTHONPATH=src $(PY) -m backfill --land-only --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR)
+	PYTHONPATH=.:src $(PY) -m utils.backfill --land-only --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR)
 
 run:
-	PYTHONPATH=src $(PY) -m backfill --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR)
+	PYTHONPATH=.:src $(PY) -m utils.backfill --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR)
 
 clean:
 	rm -rf $(OUTPUT_DIR) $(BRONZE_DIR) $(SILVER_DIR) $(GOLD_DIR) .pytest_cache
