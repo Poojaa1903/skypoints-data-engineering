@@ -6,9 +6,10 @@ from that day through yesterday:
 * Bronze: copy a file that is not there yet. A file already copied, with
   the same checksum, is left alone. Files dated before the monitoring
   date are ignored.
-* Silver and gold: process a day only when that day is missing or
-  incomplete. A day that already has its outputs is skipped, so a rerun
-  does not reload history.
+* Silver and gold: process a day only when bronze accepted every file
+  for that day and the day is not already complete. A bronze failure
+  (unreadable file, unexpected columns, empty file, checksum conflict)
+  stops that day. Nothing is written to silver or gold for it.
 * A calendar day with no file is not a gap. Nothing is created for it.
 
 A file with no date in its name (AUS.xlsx) is part of the first day,
@@ -24,6 +25,7 @@ from pathlib import Path
 
 from bronze.bronze import CONFLICT, land_window
 from bronze.bronze import LandingResult
+from bronze.schema_audit import FAILED, audit_day
 from pipeline import run
 from settings import load_paths, monitoring_date, previous_day
 
@@ -35,6 +37,7 @@ class BackfillResult:
     landing: list[LandingResult] = field(default_factory=list)
     processed: list[date] = field(default_factory=list)
     skipped: list[date] = field(default_factory=list)
+    blocked: list[date] = field(default_factory=list)
 
 
 def backfill(
@@ -49,10 +52,21 @@ def backfill(
 ) -> BackfillResult:
     """Fill gaps from start through end. Complete days are not reprocessed."""
     result = BackfillResult(landing=land_window(input_dir, bronze_dir, start, end))
+    conflict_days: set[date] = set()
+    for item in result.landing:
+        landed_on = _landing_day(item)
+        if item.status == CONFLICT and landed_on is not None:
+            conflict_days.add(landed_on)
+    for day in bronze_days(bronze_dir, start, end):
+        audits = audit_day(bronze_dir, day)
+        if day in conflict_days or any(item.status == FAILED for item in audits):
+            result.blocked.append(day)
     if land_only:
         return result
 
     for day in bronze_days(bronze_dir, start, end):
+        if day in result.blocked:
+            continue
         if is_complete(silver_dir, gold_dir, day):
             result.skipped.append(day)
             continue
@@ -148,12 +162,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"SKIP            {day.isoformat()} already in silver and gold")
     for day in result.processed:
         print(f"PROCESS         {day.isoformat()}")
+    for day in result.blocked:
+        print(f"BLOCKED         {day.isoformat()} stayed in bronze; silver and gold were not written")
 
     conflicts = [item for item in result.landing if item.status == CONFLICT]
     if conflicts:
         print(f"{len(conflicts)} file(s) changed since they were landed. Nothing was overwritten.")
         return 1
+    if result.blocked:
+        return 1
     return 0
+
+
+def _landing_day(item: LandingResult) -> date | None:
+    if item.bronze_path is None:
+        return None
+    try:
+        return date.fromisoformat(item.bronze_path.parent.name)
+    except ValueError:
+        return None
 
 
 if __name__ == "__main__":

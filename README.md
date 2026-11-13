@@ -24,8 +24,8 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 
 ## Approach
 
-- **Bronze** (`outputs/bronze/<date>/`): raw text, never changed. JSON kept whole. The folder date is the date in the file name, or yesterday when the name has none.
-- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. Bad rows go to quarantine and do not stop the run.
+- **Bronze** (`outputs/bronze/<date>/`): raw text, never changed. JSON kept whole. `file_audit.csv` logs every file. `schema_audit.csv` logs each column name and type, and a change when a column is new, missing, or a different type. A file that fails these checks does not go to silver.
+- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. A bad row (invalid date, missing name) goes to quarantine. The rest of that file still loads.
 - **Gold** (`outputs/gold/<date>/`): one table per country and the review list, for the file date. A redemption is filed under its transaction date, so a file from 24 Nov that contains a 25 Nov transaction creates the 25 Nov folder.
 
 ## Decisions
