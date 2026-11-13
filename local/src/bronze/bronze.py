@@ -1,8 +1,8 @@
 """Bronze landing: copy each raw file, unchanged, into a dated folder.
 
 Layout:
-    outputs/bronze/<feed>/<YYYY-MM-DD>/<file>
-    outputs/bronze/load_log.csv   one row per file landed (what arrived, when, checksum)
+    outputs/bronze/<YYYY-MM-DD>/<feed>/<file>
+    outputs/bronze/<YYYY-MM-DD>/load_log.csv
 
 The folder date comes from the file name when the name has one
 (members_20240115.txt, redemptions_20240115.json, or a name like
@@ -11,7 +11,7 @@ uses the run date, which defaults to yesterday.
 
 The date is written YYYY-MM-DD. A slash, as in 24/11/2020, cannot be a
 folder name. The same prefix is what cloud storage uses as a partition
-(s3://.../members_flat/2020-11-24/). The raw file is still one copy:
+(s3://.../2020-11-24/members_flat/). The raw file is still one copy:
 rows for a different day are split later, in silver and gold.
 
 Rules:
@@ -141,7 +141,7 @@ def _land_all(input_dir, bronze_dir, choose_day, run_date: date, skip_undated_al
 
 
 def _land_one(source: Path, bronze_dir: Path, feed: str, day: date, run_date: date) -> LandingResult:
-    target = bronze_dir / feed / day.isoformat() / source.name
+    target = bronze_dir / day.isoformat() / feed / source.name
     source_sha = _sha256(source)
     if target.exists():
         status = ALREADY_LANDED if _sha256(target) == source_sha else CONFLICT
@@ -153,7 +153,7 @@ def _land_one(source: Path, bronze_dir: Path, feed: str, day: date, run_date: da
         target.unlink()
         raise OSError(f"copy of {source.name} does not match the source")
 
-    _append_log(bronze_dir / "load_log.csv", {
+    _append_log(bronze_dir / day.isoformat() / "load_log.csv", {
         "feed": feed,
         "source_file": source.name,
         "bronze_path": target.relative_to(bronze_dir).as_posix(),
@@ -167,10 +167,9 @@ def _land_one(source: Path, bronze_dir: Path, feed: str, day: date, run_date: da
 
 
 def _find_copy(bronze_dir: Path, feed: str, filename: str, sha: str) -> Path | None:
-    feed_dir = bronze_dir / feed
-    if not feed_dir.exists():
+    if not bronze_dir.exists():
         return None
-    for found in feed_dir.glob(f"*/{filename}"):
+    for found in bronze_dir.glob(f"*/{feed}/{filename}"):
         if found.is_file() and _sha256(found) == sha:
             return found
     return None

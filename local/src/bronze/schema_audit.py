@@ -1,9 +1,10 @@
 """Schema and file audit for bronze. This is the change log.
 
-Every file that lands is recorded in file_audit.csv. The first time a
+Every file that lands is recorded in <date>/file_audit.csv. The first time a
 feed is seen, and whenever its columns or types change, each column is
-recorded in schema_audit.csv. A new file, a new column, a missing column
-and a type change are the CDC events.
+recorded in <date>/schema_audit.csv. A new file, a new column, a missing column
+and a type change are the CDC events. Earlier date folders are read so a
+change is still seen across days.
 
 Bronze stores values as text. The type here is what the values look like
 (TEXT, NUMBER, EMPTY, ARRAY, OBJECT, MIXED), not a cast.
@@ -86,8 +87,8 @@ class AuditResult:
 def audit_day(bronze_dir: Path, day: date) -> list[AuditResult]:
     """Profile every file landed on this day. Failures block silver."""
     results: list[AuditResult] = []
-    known = _last_schema(bronze_dir / SCHEMA_AUDIT)
-    logged = _logged_sha(bronze_dir / FILE_AUDIT)
+    known = _last_schema(bronze_dir)
+    logged = _logged_sha(bronze_dir)
     for feed, path in files_for_day(bronze_dir, day):
         sha = _sha256(path)
         if sha in logged:
@@ -100,7 +101,8 @@ def audit_day(bronze_dir: Path, day: date) -> list[AuditResult]:
         previous = known.get(key)
         status, detail, schema_rows = _decide(profile, previous)
         checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        _append(bronze_dir / FILE_AUDIT, FILE_COLUMNS, {
+        day_dir = bronze_dir / day.isoformat()
+        _append(day_dir / FILE_AUDIT, FILE_COLUMNS, {
             "checked_at": checked_at,
             "load_date": day.isoformat(),
             "feed": feed,
@@ -117,7 +119,7 @@ def audit_day(bronze_dir: Path, day: date) -> list[AuditResult]:
                 row["load_date"] = day.isoformat()
                 row["feed"] = feed
                 row["source_file"] = path.name
-            _append_many(bronze_dir / SCHEMA_AUDIT, SCHEMA_COLUMNS, schema_rows)
+            _append_many(day_dir / SCHEMA_AUDIT, SCHEMA_COLUMNS, schema_rows)
         if status != FAILED:
             known[key] = {column.name: column.data_type for column in profile.columns}
         logged[sha] = status
@@ -128,7 +130,7 @@ def audit_day(bronze_dir: Path, day: date) -> list[AuditResult]:
 def files_for_day(bronze_dir: Path, day: date) -> list[tuple[str, Path]]:
     found: list[tuple[str, Path]] = []
     for feed in ("members_flat", "country_xlsx", "redemptions"):
-        folder = bronze_dir / feed / day.isoformat()
+        folder = bronze_dir / day.isoformat() / feed
         if not folder.exists():
             continue
         for path in sorted(folder.iterdir()):
@@ -345,42 +347,49 @@ def _schema_key(feed: str, filename: str) -> str:
     return feed
 
 
-def _last_schema(path: Path) -> dict[str, dict[str, str]]:
-    """Latest accepted column types. A failed file does not become the baseline."""
-    failed = _failed_snapshots(path.parent / FILE_AUDIT)
+def _last_schema(bronze_dir: Path) -> dict[str, dict[str, str]]:
+    """Latest accepted column types across every date folder."""
+    failed = _failed_snapshots(bronze_dir)
     latest: dict[str, tuple[str, dict[str, str]]] = {}
-    if not path.exists():
-        return {}
-    with open(path, newline="", encoding="utf-8") as handle:
-        for row in csv.DictReader(handle):
-            if (row["checked_at"], row["source_file"]) in failed:
-                continue
-            key = _schema_key(row["feed"], row["source_file"])
-            stamp = row["checked_at"]
-            current = latest.get(key)
-            if current is None or stamp > current[0]:
-                latest[key] = (stamp, {})
-            if stamp == latest[key][0] and row["change"] != MISSING:
-                latest[key][1][row["column_name"]] = row["data_type"]
+    for path in _dated_files(bronze_dir, SCHEMA_AUDIT):
+        with open(path, newline="", encoding="utf-8") as handle:
+            for row in csv.DictReader(handle):
+                if (row["checked_at"], row["source_file"]) in failed:
+                    continue
+                key = _schema_key(row["feed"], row["source_file"])
+                stamp = row["checked_at"]
+                current = latest.get(key)
+                if current is None or stamp > current[0]:
+                    latest[key] = (stamp, {})
+                if stamp == latest[key][0] and row["change"] != MISSING:
+                    latest[key][1][row["column_name"]] = row["data_type"]
     return {key: columns for key, (_, columns) in latest.items()}
 
 
-def _failed_snapshots(path: Path) -> set[tuple[str, str]]:
-    if not path.exists():
-        return set()
-    with open(path, newline="", encoding="utf-8") as handle:
-        return {
-            (row["checked_at"], row["source_file"])
-            for row in csv.DictReader(handle)
-            if row["status"] == FAILED
-        }
+def _failed_snapshots(bronze_dir: Path) -> set[tuple[str, str]]:
+    failed: set[tuple[str, str]] = set()
+    for path in _dated_files(bronze_dir, FILE_AUDIT):
+        with open(path, newline="", encoding="utf-8") as handle:
+            failed.update(
+                (row["checked_at"], row["source_file"])
+                for row in csv.DictReader(handle)
+                if row["status"] == FAILED
+            )
+    return failed
 
 
-def _logged_sha(path: Path) -> dict[str, str]:
-    if not path.exists():
-        return {}
-    with open(path, newline="", encoding="utf-8") as handle:
-        return {row["sha256"]: row["status"] for row in csv.DictReader(handle)}
+def _logged_sha(bronze_dir: Path) -> dict[str, str]:
+    logged: dict[str, str] = {}
+    for path in _dated_files(bronze_dir, FILE_AUDIT):
+        with open(path, newline="", encoding="utf-8") as handle:
+            logged.update({row["sha256"]: row["status"] for row in csv.DictReader(handle)})
+    return logged
+
+
+def _dated_files(bronze_dir: Path, name: str) -> list[Path]:
+    if not bronze_dir.exists():
+        return []
+    return sorted(bronze_dir.glob(f"*/{name}"))
 
 
 def _append(path: Path, columns: list[str], row: dict) -> None:

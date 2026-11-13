@@ -88,18 +88,16 @@ def bronze_days(bronze_dir: Path, start: date, end: date) -> list[date]:
     if not bronze_dir.exists():
         return []
     found: set[date] = set()
-    for feed in bronze_dir.iterdir():
-        if not feed.is_dir():
+    for day_dir in bronze_dir.iterdir():
+        if not day_dir.is_dir():
             continue
-        for day_dir in feed.iterdir():
-            if not day_dir.is_dir():
-                continue
-            try:
-                day = date.fromisoformat(day_dir.name)
-            except ValueError:
-                continue
-            if start <= day <= end and any(day_dir.iterdir()):
-                found.add(day)
+        try:
+            day = date.fromisoformat(day_dir.name)
+        except ValueError:
+            continue
+        has_file = any(path.is_file() for path in day_dir.rglob("*") if path.parent != day_dir)
+        if start <= day <= end and has_file:
+            found.add(day)
     return sorted(found)
 
 
