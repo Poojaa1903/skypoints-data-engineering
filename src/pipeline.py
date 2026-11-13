@@ -22,21 +22,22 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from skypoints.countries import load_lookups, resolve_country
-from skypoints.derived import age_on, is_stale_member
-from skypoints.gold import split_by_country
-from skypoints.ingest import read_country_xlsx, read_flat_file, read_redemption_json
-from skypoints.latest import MemberRecord, pick_latest
-from skypoints.parsers import DateFormat, parse_date
-from skypoints.redemptions import (
+from bronze.ingest import read_country_xlsx, read_flat_file, read_redemption_json
+from gold.gold import split_by_country
+from gold.latest import MemberRecord, pick_latest
+from gold.redemptions import (
     Transaction,
     dedupe_transactions,
     flatten_redemptions,
     join_to_members,
 )
-from skypoints.validations import RawMember, SourceFormats, duplicate_keys, validate_member
+from silver.countries import load_lookups, resolve_country
+from silver.derived import age_on, is_stale_member
+from silver.parsers import DateFormat, parse_date
+from silver.validations import RawMember, SourceFormats, duplicate_keys, validate_member
+from settings import load_paths
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[2] / "config"
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config"
 
 FLAT_FORMATS = SourceFormats(
     enrollment=DateFormat.YYYYMMDD,
@@ -218,9 +219,11 @@ def run(bronze_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFA
 
 
 def main(argv: list[str] | None = None) -> int:
+    paths = load_paths()
     parser = argparse.ArgumentParser(description="SkyPoints member pipeline")
-    parser.add_argument("--bronze", default=Path("data/bronze"), type=Path)
-    parser.add_argument("--output", default=Path("outputs"), type=Path)
+    parser.add_argument("--bronze", default=paths["BRONZE_DIR"], type=Path,
+                        help="folder the pipeline reads, from config/paths.env")
+    parser.add_argument("--output", default=paths["OUTPUT_DIR"], type=Path)
     parser.add_argument("--as-of", required=True, type=date.fromisoformat)
     args = parser.parse_args(argv)
 

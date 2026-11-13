@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from settings import load_paths
+
 LOG_COLUMNS = [
     "feed", "source_file", "bronze_path", "load_date",
     "sha256", "size_bytes", "loaded_at",
@@ -88,9 +90,12 @@ def land_files(input_dir: Path, bronze_dir: Path, load_date: date) -> list[Landi
 
 
 def main(argv: list[str] | None = None) -> int:
+    paths = load_paths()
     parser = argparse.ArgumentParser(description="Land raw files into bronze")
-    parser.add_argument("--input", required=True, type=Path)
-    parser.add_argument("--bronze", default=Path("data/bronze"), type=Path)
+    parser.add_argument("--input", default=paths["SOURCE_DIR"], type=Path,
+                        help="folder bronze reads, from config/paths.env")
+    parser.add_argument("--bronze", default=paths["BRONZE_DIR"], type=Path,
+                        help="folder bronze writes, from config/paths.env")
     parser.add_argument("--load-date", required=True, type=date.fromisoformat)
     args = parser.parse_args(argv)
 

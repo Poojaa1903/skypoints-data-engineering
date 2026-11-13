@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from skypoints.ingest import RedemptionRecord
-from skypoints.latest import MemberRecord
+from bronze.ingest import RedemptionRecord
+from gold.latest import MemberRecord
 
 
 @dataclass(frozen=True)

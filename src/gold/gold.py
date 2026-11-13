@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from skypoints.latest import LatestResult, MemberRecord
+from gold.latest import LatestResult, MemberRecord
 
 
 @dataclass

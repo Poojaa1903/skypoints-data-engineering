@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from skypoints.countries import CountryStatus, load_lookups, resolve_country
+from silver.countries import CountryStatus, load_lookups, resolve_country
 
 ROOT = Path(__file__).resolve().parents[1]
 LOOKUPS = None

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from skypoints.ingest import read_country_xlsx, read_flat_file, read_redemption_json
+from bronze.ingest import read_country_xlsx, read_flat_file, read_redemption_json
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUT = ROOT / "data" / "input"

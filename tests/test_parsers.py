@@ -14,7 +14,7 @@ from datetime import date
 
 import pytest
 
-from skypoints.parsers import (
+from silver.parsers import (
     AmbiguousDateError,
     DateFormat,
     InvalidDateError,

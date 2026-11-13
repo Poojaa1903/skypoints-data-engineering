@@ -18,8 +18,8 @@ File rule (reject duplicates):
   That is the latest-record-wins case.
 """
 
-from skypoints.parsers import DateFormat
-from skypoints.validations import (
+from silver.parsers import DateFormat
+from silver.validations import (
     RawMember,
     SourceFormats,
     duplicate_keys,

@@ -15,7 +15,7 @@ Member IDs are compared as text. They are never converted to numbers.
 
 from datetime import date
 
-from skypoints.latest import MemberRecord, pick_latest
+from gold.latest import MemberRecord, pick_latest
 
 
 def rec(member_id, country, *, flight=None, enrolled=date(2020, 1, 1),

@@ -18,7 +18,7 @@ from datetime import date
 
 import pytest
 
-from skypoints.derived import age_on, is_stale_member
+from silver.derived import age_on, is_stale_member
 
 AS_OF = date(2024, 1, 15)
 

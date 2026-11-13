@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from skypoints.parsers import AmbiguousDateError, DateFormat, InvalidDateError, parse_date
+from silver.parsers import AmbiguousDateError, DateFormat, InvalidDateError, parse_date
 
 _BLANK_TOKENS = {"", "NULL"}
 

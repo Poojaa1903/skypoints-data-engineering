@@ -20,13 +20,16 @@ CREATE TABLE IF NOT EXISTS silver.ref_country (
 
 -- ---------------------------------------------------------------------
 -- Member staging: typed, cleaned, with derived fields.
--- One row per member per source record. Business key is member_id.
+-- One row per source record that passed validation.
+-- member_id is unique inside one file only. Across files, a person is
+-- name + date of birth (see sql/gold/05_latest_and_split.sql).
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS silver.member_stg (
     -- lineage
     source_file          VARCHAR       NOT NULL,
     source_system        VARCHAR       NOT NULL,   -- FLAT_FILE / COUNTRY_XLSX
-    source_country       VARCHAR,                  -- from the file name (xlsx) or raw Country (flat)
+    source_scope         VARCHAR       NOT NULL,   -- FLAT, or the xlsx country. Part of the person key.
+    source_country       VARCHAR,                  -- raw country text, before ISO mapping
     row_num              NUMBER        NOT NULL,
     load_date            DATE          NOT NULL,   -- as_of date of the run
     -- business key and attributes

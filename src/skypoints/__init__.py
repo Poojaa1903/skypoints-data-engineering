@@ -1,1 +1,0 @@
-"""SkyPoints member data pipeline."""

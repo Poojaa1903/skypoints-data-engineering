@@ -15,9 +15,9 @@ Rules these tests lock in:
 from datetime import date
 from pathlib import Path
 
-from skypoints.ingest import RedemptionRecord, read_redemption_json
-from skypoints.latest import MemberRecord
-from skypoints.redemptions import (
+from bronze.ingest import RedemptionRecord, read_redemption_json
+from gold.latest import MemberRecord
+from gold.redemptions import (
     Transaction,
     dedupe_transactions,
     flatten_redemptions,

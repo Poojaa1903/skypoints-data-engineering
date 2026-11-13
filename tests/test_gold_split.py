@@ -15,8 +15,8 @@ from datetime import date
 
 import pytest
 
-from skypoints.gold import split_by_country, table_name_for
-from skypoints.latest import MemberRecord, pick_latest
+from gold.gold import split_by_country, table_name_for
+from gold.latest import MemberRecord, pick_latest
 
 
 def rec(member_id, country, flight, source="file.txt", file_date=date(2024, 1, 15), row_num=1):

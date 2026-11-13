@@ -2,6 +2,8 @@ VENV ?= .venv
 PY := $(VENV)/bin/python
 AS_OF ?= 2024-01-15
 
+include config/paths.env
+
 .PHONY: setup test bronze run clean
 
 setup:
@@ -12,10 +14,10 @@ test:
 	$(PY) -m pytest -q
 
 bronze:
-	PYTHONPATH=src $(PY) -m skypoints.bronze --input data/input --bronze data/bronze --load-date $(AS_OF)
+	PYTHONPATH=src $(PY) -m bronze.bronze --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --load-date $(AS_OF)
 
 run: bronze
-	PYTHONPATH=src $(PY) -m skypoints.pipeline --bronze data/bronze --output outputs --as-of $(AS_OF)
+	PYTHONPATH=src $(PY) -m pipeline --bronze $(BRONZE_DIR) --output $(OUTPUT_DIR) --as-of $(AS_OF)
 
 clean:
-	rm -rf outputs data/bronze data/silver data/gold .pytest_cache
+	rm -rf $(OUTPUT_DIR) $(BRONZE_DIR) $(SILVER_DIR) $(GOLD_DIR) .pytest_cache
