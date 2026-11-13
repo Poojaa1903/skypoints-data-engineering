@@ -1,5 +1,5 @@
 -- =====================================================================
--- 02_silver_ddl.sql
+-- silver_ddl.sql
 -- Silver = cleaned, typed, standardised members. One row per member
 -- record that passed validation. Rejected rows go to the quarantine table.
 -- Dialect: Snowflake.
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS silver.ref_country (
 -- Member staging: typed, cleaned, with derived fields.
 -- One row per source record that passed validation.
 -- member_id is unique inside one file only. Across files, a person is
--- name + date of birth (see sql/gold/05_latest_and_split.sql).
+-- name + date of birth (see sql/gold/latest_and_split.sql).
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS silver.member_stg (
     -- lineage

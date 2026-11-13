@@ -1,5 +1,5 @@
 -- =====================================================================
--- 01_bronze_ddl.sql
+-- bronze_ddl.sql
 -- Bronze = landing zone. Data is stored exactly as it arrived.
 -- Rules:
 --   * Every business column is VARCHAR. Nothing is cast here, so

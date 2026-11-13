@@ -46,4 +46,4 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 
 ## Moving to Snowflake
 
-The rules stay the same. Files move to cloud storage under the same date prefix (`.../2024-01-15/`), `COPY INTO` or Snowpipe loads them, and a daily task runs for yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`sql/gold/06_redemptions.sql`). Each table records `created_at`, `created_by` and `modified_at`. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.
+The rules stay the same. Files move to cloud storage under the same date prefix (`.../2024-01-15/`), `COPY INTO` or Snowpipe loads them, and a daily task runs for yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`sql/gold/redemptions.sql`). Each table records `created_at`, `created_by` and `modified_at`. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.
