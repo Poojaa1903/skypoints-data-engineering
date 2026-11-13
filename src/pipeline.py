@@ -35,6 +35,7 @@ from silver.countries import load_lookups, resolve_country
 from silver.derived import age_on, is_stale_member
 from silver.parsers import DateFormat, parse_date
 from silver.validations import RawMember, SourceFormats, duplicate_keys, validate_member
+from quality import FileVolume, QualityFacts, evaluate, failed, load_limits, previous_member_count, write_report
 from settings import load_paths, previous_day
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config"
@@ -49,6 +50,9 @@ XLSX_FORMATS = {
     "IND": SourceFormats(DateFormat.EXCEL_SERIAL, DateFormat.EXCEL_SERIAL, DateFormat.EXCEL_SERIAL),
     "USA": SourceFormats(DateFormat.MMDDYYYY, DateFormat.MMDDYYYY, DateFormat.MMDDYYYY),
 }
+
+_REQUIRED_NULLS = {"MEMBER_ID_MISSING", "MEMBER_NAME_MISSING", "COUNTRY_MISSING", "ENROLLMENT_DATE_MISSING"}
+_COUNT = {"bronze": 0, "loaded": 1, "rejected": 2, "nulls": 3}
 
 TABLE_COLUMNS = [
     "member_key", "member_id", "source_file", "source_scope", "member_name",
@@ -83,6 +87,7 @@ class PipelineSummary:
     removals: int = 0
     unmapped_countries: list[str] = field(default_factory=list)
     redemption_days: list[date] = field(default_factory=list)
+    quality_failed: bool = False
 
 
 def person_key(name: str | None, dob: date | None, *, scope: str, member_id: str) -> str:
@@ -102,18 +107,21 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
     """
     lookups = load_lookups(config_dir / "iso_countries.csv", config_dir / "country_aliases.csv")
     silver_day = _day_dir(silver_dir, as_of)
-    gold_day = _day_dir(gold_dir, as_of)
 
     quarantine: list[dict] = []
     candidates: list[Candidate] = []
+    unmapped_rows = 0
     unmapped: set[str] = set()
+    volumes: dict[str, list[int]] = {}
 
     # 1-3. Flat member file
     for path in _landed(bronze_dir, "members_flat", as_of, "members_*.txt"):
         details = [r for r in read_flat_file(path) if r.record_type == "D"]
         dups = duplicate_keys(r.member_id for r in details if not r.error)
         for rec in details:
+            _count(volumes, path.name, "bronze")
             if rec.error:
+                _count(volumes, path.name, "rejected")
                 quarantine.append(_q(path.name, rec.row_num, None, None, [rec.error], rec.error))
                 continue
             raw = RawMember(rec.member_id, rec.member_name, rec.country, rec.enrollment, rec.flight, rec.dob)
@@ -122,12 +130,17 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
             if rec.member_id in dups:
                 rules.append("DUPLICATE_MEMBER_ID_IN_FILE")
             if rules:
+                _count(volumes, path.name, "rejected")
+                if _REQUIRED_NULLS.intersection(rules):
+                    _count(volumes, path.name, "nulls")
                 detail = "; ".join(i.detail for i in issues) or "duplicate member_id in file"
                 quarantine.append(_q(path.name, rec.row_num, rec.member_id, rec.member_name, rules, detail))
                 continue
+            _count(volumes, path.name, "loaded")
 
             match = resolve_country(rec.country, lookups)
             if match.register:
+                unmapped_rows += 1
                 unmapped.add(rec.country.strip().upper())
             dob = parse_date(rec.dob, FLAT_FORMATS.dob)
             candidates.append(Candidate(
@@ -149,6 +162,7 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
         rows = read_country_xlsx(path)
         dups = duplicate_keys(r.source_member_id for r in rows)
         for rec in rows:
+            _count(volumes, path.name, "bronze")
             raw = RawMember(rec.source_member_id, rec.member_name, source_country,
                             rec.enrollment_date_raw, rec.flight_date_raw, rec.dob_raw)
             issues = validate_member(raw, formats)
@@ -156,12 +170,17 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
             if rec.source_member_id in dups:
                 rules.append("DUPLICATE_MEMBER_ID_IN_FILE")
             if rules:
+                _count(volumes, path.name, "rejected")
+                if _REQUIRED_NULLS.intersection(rules):
+                    _count(volumes, path.name, "nulls")
                 detail = "; ".join(i.detail for i in issues) or "duplicate member_id in file"
                 quarantine.append(_q(path.name, rec.row_num, rec.source_member_id, rec.member_name, rules, detail))
                 continue
+            _count(volumes, path.name, "loaded")
 
             match = resolve_country(source_country, lookups)
             if match.register:
+                unmapped_rows += 1
                 unmapped.add(source_country)
             dob = parse_date(rec.dob_raw, formats.dob)
             candidates.append(Candidate(
@@ -174,6 +193,20 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
                 key=person_key(rec.member_name, dob, scope=source_country, member_id=rec.source_member_id),
             ))
 
+    # Redemptions are counted before the quality gate, and written after it passes.
+    txns: list[Transaction] = []
+    for path in _landed(bronze_dir, "redemptions", as_of, "redemptions_*.json"):
+        flat = flatten_redemptions(read_redemption_json(path))
+        for reject in flat.rejects:
+            _count(volumes, path.name, "bronze")
+            _count(volumes, path.name, "rejected")
+            quarantine.append(_q(reject.source_file, reject.row_num, None, None, [reject.reason], reject.reason))
+        for txn in flat.rows:
+            _count(volumes, path.name, "bronze")
+            _count(volumes, path.name, "loaded")
+        txns.extend(flat.rows)
+    txns = dedupe_transactions(txns)
+
     # 4-5. Latest record per person, then split by country
     records = [
         MemberRecord(
@@ -184,45 +217,50 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
     ]
     result = pick_latest(records)
     gold = split_by_country(result)
-
-    by_location = {(c.source_file, c.row_num): c for c in candidates}
-    summary = PipelineSummary(removals=len(gold.removals))
-    for table, members in sorted(gold.tables.items()):
-        cands = [by_location[(m.source_file, m.row_num)] for m in members]
-        _write_table(gold_day / f"{table}.csv", cands, as_of)
-        summary.tables[table] = len(cands)
-
-    # Review list: same name, different person keys (not merged)
-    review = _review_rows(candidates)
-    _write_csv(gold_day / "review_possible_moves.csv", ["name", "countries", "member_ids"], review)
-    summary.review_items = len(review)
-
-    # 6. Redemptions
-    txns: list[Transaction] = []
-    for path in _landed(bronze_dir, "redemptions", as_of, "redemptions_*.json"):
-        flat = flatten_redemptions(read_redemption_json(path))
-        txns.extend(flat.rows)
-        for reject in flat.rejects:
-            quarantine.append(_q(reject.source_file, reject.row_num, None, None, [reject.reason], reject.reason))
-    txns = dedupe_transactions(txns)
-
     flat_winner = {
         c.member_id: result.winners[c.key]
         for c in candidates
         if c.scope == "FLAT" and c.key in result.winners
     }
     joined = join_to_members(txns, flat_winner)
-    summary.redemption_days = _write_redemptions_by_date(gold_dir, joined, as_of)
-    summary.matched_redemptions = len(joined.matched)
-    summary.orphan_redemptions = len(joined.orphans)
 
+    member_files = [name for name in volumes if not name.startswith("redemptions_")]
+    checks = evaluate(QualityFacts(
+        files=[_volume(name, counts) for name, counts in sorted(volumes.items())],
+        unmapped_rows=unmapped_rows,
+        loaded_members=sum(volumes[name][1] for name in member_files),
+        previous_members=previous_member_count(silver_dir, as_of),
+        redemption_rows=len(joined.matched) + len(joined.orphans),
+        orphan_redemptions=len(joined.orphans),
+    ), load_limits())
+    write_report(silver_day / "quality_report.csv", checks)
     _write_csv(
         silver_day / "quarantine.csv",
         ["source_file", "row_num", "member_id", "member_name", "rules", "detail"],
         quarantine,
     )
-    summary.quarantined = len(quarantine)
-    summary.unmapped_countries = sorted(unmapped)
+    summary = PipelineSummary(
+        quarantined=len(quarantine),
+        removals=len(gold.removals),
+        matched_redemptions=len(joined.matched),
+        orphan_redemptions=len(joined.orphans),
+        unmapped_countries=sorted(unmapped),
+        quality_failed=failed(checks),
+    )
+    if summary.quality_failed:
+        return summary
+
+    gold_day = _day_dir(gold_dir, as_of)
+    by_location = {(c.source_file, c.row_num): c for c in candidates}
+    for table, members in sorted(gold.tables.items()):
+        cands = [by_location[(m.source_file, m.row_num)] for m in members]
+        _write_table(gold_day / f"{table}.csv", cands, as_of)
+        summary.tables[table] = len(cands)
+
+    review = _review_rows(candidates)
+    _write_csv(gold_day / "review_possible_moves.csv", ["name", "countries", "member_ids"], review)
+    summary.review_items = len(review)
+    summary.redemption_days = _write_redemptions_by_date(gold_dir, joined, as_of)
     return summary
 
 
@@ -241,6 +279,9 @@ def main(argv: list[str] | None = None) -> int:
 
     summary = run(args.bronze, args.silver, args.gold, args.as_of)
     print(f"Run date {args.as_of.isoformat()}")
+    if summary.quality_failed:
+        print("Quality checks failed. Silver was written. Gold was not.")
+        return 1
     print(f"Silver written to {args.silver / args.as_of.isoformat()}")
     print(f"Gold tables written to {args.gold / args.as_of.isoformat()}:")
     for table, count in summary.tables.items():
@@ -252,6 +293,15 @@ def main(argv: list[str] | None = None) -> int:
     if summary.unmapped_countries:
         print(f"Unmapped country codes registered: {', '.join(summary.unmapped_countries)}")
     return 0
+
+
+def _count(volumes: dict[str, list[int]], source_file: str, kind: str) -> None:
+    volumes.setdefault(source_file, [0, 0, 0, 0])
+    volumes[source_file][_COUNT[kind]] += 1
+
+
+def _volume(source_file: str, counts: list[int]) -> FileVolume:
+    return FileVolume(source_file, counts[0], counts[1], counts[2], counts[3])
 
 
 def _landed(bronze_dir: Path, feed: str, load_date: date, pattern: str) -> list[Path]:

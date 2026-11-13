@@ -38,6 +38,7 @@ class BackfillResult:
     processed: list[date] = field(default_factory=list)
     skipped: list[date] = field(default_factory=list)
     blocked: list[date] = field(default_factory=list)
+    quality_failed: list[date] = field(default_factory=list)
 
 
 def backfill(
@@ -74,6 +75,9 @@ def backfill(
             summary = run(bronze_dir, silver_dir, gold_dir, day)
         else:
             summary = run(bronze_dir, silver_dir, gold_dir, day, config_dir)
+        if summary.quality_failed:
+            result.quality_failed.append(day)
+            continue
         _mark_success(gold_dir, day, summary.redemption_days)
         result.processed.append(day)
     return result
@@ -164,12 +168,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"PROCESS         {day.isoformat()}")
     for day in result.blocked:
         print(f"BLOCKED         {day.isoformat()} stayed in bronze; silver and gold were not written")
+    for day in result.quality_failed:
+        print(f"QUALITY FAIL    {day.isoformat()} silver kept, gold was not written")
 
     conflicts = [item for item in result.landing if item.status == CONFLICT]
     if conflicts:
         print(f"{len(conflicts)} file(s) changed since they were landed. Nothing was overwritten.")
         return 1
-    if result.blocked:
+    if result.blocked or result.quality_failed:
         return 1
     return 0
 

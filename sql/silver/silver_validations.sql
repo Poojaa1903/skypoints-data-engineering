@@ -2,6 +2,9 @@
 -- A non-empty result is a failed check. The pipeline still loads the
 -- other rows; these rows are the ones that belong in quarantine.
 -- Dialect: Snowflake. Run after silver is loaded.
+--
+-- The runnable gate is src/quality.py. Thresholds are config/quality.env.
+-- A FAIL there stops gold. These queries are the same checks for Snowflake.
 
 -- 1. Mandatory fields. Member id, name, country and enrollment date.
 SELECT source_file, row_num, 'MEMBER_ID_MISSING' AS reject_rule
