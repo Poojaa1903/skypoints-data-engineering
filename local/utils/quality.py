@@ -3,7 +3,7 @@
 Each check is PASS, WARN or FAIL. A WARN is reported and the day continues.
 A FAIL writes the silver quarantine and this report, and does not write gold.
 
-Thresholds live in config/pipeline.env. A file with fewer than
+Thresholds live in local/pipeline.env. A file with fewer than
 REJECT_MIN_ROWS rows warns instead of failing, because one bad row in the
 sample extract is 33 percent and must not stop the demo.
 """

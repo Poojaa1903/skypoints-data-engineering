@@ -22,7 +22,7 @@ import pytest
 from bronze.bronze import land_files
 from pipeline import main, person_key, run
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 INPUT = ROOT / "data"
 AS_OF = date(2024, 1, 15)
 

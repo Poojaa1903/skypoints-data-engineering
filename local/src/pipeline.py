@@ -38,7 +38,7 @@ from silver.validations import RawMember, SourceFormats, duplicate_keys, validat
 from utils.quality import FileVolume, QualityFacts, evaluate, failed, load_limits, previous_member_count, write_report
 from utils.settings import load_paths, previous_day
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config"
+DEFAULT_CONFIG = Path(__file__).resolve().parents[2] / "config"
 
 FLAT_FORMATS = SourceFormats(
     enrollment=DateFormat.YYYYMMDD,

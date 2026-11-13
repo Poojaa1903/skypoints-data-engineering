@@ -3,7 +3,7 @@
 -- other rows; these rows are the ones that belong in quarantine.
 -- Dialect: Snowflake. Run after silver is loaded.
 --
--- The runnable gate is utils/quality.py. Thresholds are config/pipeline.env.
+-- The runnable gate is local/utils/quality.py. Thresholds are local/pipeline.env.
 -- A FAIL there stops gold. These queries are the same checks for Snowflake.
 
 -- 1. Mandatory fields. Member id, name, country and enrollment date.

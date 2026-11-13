@@ -7,7 +7,7 @@ table that the DDL never creates, which is what broke silver_load.sql.
 import re
 from pathlib import Path
 
-SQL_ROOT = Path(__file__).resolve().parents[2] / "sql"
+SQL_ROOT = Path(__file__).resolve().parents[3] / "snowflake"
 CREATE = re.compile(
     r"CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_]+\.[a-z_]+)",
     re.IGNORECASE,

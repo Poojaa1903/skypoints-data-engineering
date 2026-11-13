@@ -24,7 +24,7 @@ from gold.redemptions import (
     join_to_members,
 )
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def feed(member_id, feed_date, redemptions, row_num=1, source="redemptions.json"):

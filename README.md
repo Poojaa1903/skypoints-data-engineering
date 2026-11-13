@@ -12,20 +12,21 @@ make test
 make run
 ```
 
-`make run` restores every file from `MONITORING_DATE` in `config/pipeline.env` through yesterday. It copies what is missing into `outputs/bronze/<date>/`, then writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. A day that is already complete is skipped. A day with no file is not a gap. The sample monitoring date is `2024-01-15`.
+`make run` restores every file from `MONITORING_DATE` in `local/pipeline.env` through yesterday. It copies what is missing into `outputs/bronze/<date>/`, then writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. A day that is already complete is skipped. A day with no file is not a gap. The sample monitoring date is `2024-01-15`.
 
 On the sample files the run writes 5 country tables (12 members), 2 quarantined rows, 1 review row (Mike), and 2 redemptions joined to Elena.
 
 ## What runs where
 
-- **Python** (`src/bronze/`, `src/silver/`, `src/gold/`, `make run`) is the pipeline you can run and demo. `make test` covers it.
-- **Snowflake SQL** (`sql/`) is the same design for a warehouse. Run it in this order: `bronze/bronze_ddl.sql`, `bronze/schema_audit.sql`, `silver/silver_ddl.sql`, `silver/member_typed.sql`, `silver/silver_load.sql`, `gold/gold_ddl.sql`, `gold/latest_and_split.sql`, `gold/redemptions.sql`, `silver/silver_validations.sql`. Empty bronze tables load zero rows. `make test` does not connect to Snowflake.
-- **DuckDB** (`tests/test_sql_rules.py`) runs the shared expressions (age, stale, latest row, JSON flatten) so those rules are tested without a warehouse.
+- **Local** (`local/`) is the pipeline you can run and demo. `local/src/` is bronze, silver, gold and the one-day pipeline. `local/utils/backfill.py` decides which days to run. `make test` covers it.
+- **Snowflake** (`snowflake/`) is the same design for a warehouse. Run it in this order: `bronze/bronze_ddl.sql`, `bronze/schema_audit.sql`, `silver/silver_ddl.sql`, `silver/member_typed.sql`, `silver/silver_load.sql`, `gold/gold_ddl.sql`, `gold/latest_and_split.sql`, `gold/redemptions.sql`, `silver/silver_validations.sql`. Empty bronze tables load zero rows. `make test` does not connect to Snowflake.
+- **Shared** (`data/`, `config/iso_countries.csv`, `config/country_aliases.csv`) is used by both. `local/pipeline.env` is local only.
+- **DuckDB** (`local/tests/gold/test_sql_rules.py`) runs the shared expressions (age, stale, latest row, JSON flatten) so those rules are tested without a warehouse. DuckDB does not run the pipeline.
 
 ## Approach
 
 - **Bronze** (`outputs/bronze/<date>/`): raw text, never changed. JSON kept whole. `file_audit.csv` logs every file. `schema_audit.csv` logs each column name and type, and a change when a column is new, missing, or a different type. A file that fails these checks does not go to silver.
-- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. A bad row goes to quarantine. `quality_report.csv` then checks the whole day. A FAIL stops gold. A WARN does not. Thresholds are in `config/pipeline.env`.
+- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. A bad row goes to quarantine. `quality_report.csv` then checks the whole day. A FAIL stops gold. A WARN does not. Thresholds are in `local/pipeline.env`.
 - **Gold** (`outputs/gold/<date>/`): one table per country and the review list, for the file date. A redemption is filed under its transaction date, so a file from 24 Nov that contains a 25 Nov transaction creates the 25 Nov folder.
 
 ## Decisions
@@ -46,4 +47,4 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 
 ## Moving to Snowflake
 
-The rules stay the same. Files move to cloud storage under the same date prefix (`.../2024-01-15/`), `COPY INTO` or Snowpipe loads them, and a daily task runs for yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`sql/gold/redemptions.sql`). Each table records `created_at`, `created_by` and `modified_at`. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.
+The rules stay the same. Files move to cloud storage under the same date prefix (`.../2024-01-15/`), `COPY INTO` or Snowpipe loads them, and a daily task runs for yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`snowflake/gold/redemptions.sql`). Each table records `created_at`, `created_by` and `modified_at`. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.

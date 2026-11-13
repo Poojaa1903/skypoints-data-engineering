@@ -1,6 +1,6 @@
 """The shared SQL rules, run on DuckDB.
 
-sql/silver/silver_load.sql, sql/gold/latest_and_split.sql and sql/gold/redemptions.sql are Snowflake and need a warehouse.
+snowflake/silver/silver_load.sql, snowflake/gold/latest_and_split.sql and snowflake/gold/redemptions.sql are Snowflake and need a warehouse.
 These tests run the same expressions on DuckDB, so a change to the
 age, stale, latest-record or flatten rule fails here.
 

@@ -1,4 +1,4 @@
-"""Read config/pipeline.env. One file for paths, the monitoring date, and quality limits.
+"""Read local/pipeline.env. One file for paths, the monitoring date, and quality limits.
 
 A run restores every day from MONITORING_DATE through yesterday. Days
 before the monitoring date are left alone. The sample date is 2024-01-15.
@@ -9,8 +9,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ENV_FILE = PROJECT_ROOT / "config" / "pipeline.env"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = PROJECT_ROOT / "local" / "pipeline.env"
 
 
 PATH_KEYS = {"SOURCE_DIR", "OUTPUT_DIR", "BRONZE_DIR", "SILVER_DIR", "GOLD_DIR"}
@@ -32,10 +32,10 @@ def load_paths(env_file: Path = ENV_FILE) -> dict[str, Path]:
 
 
 def monitoring_date(env: dict[str, str] | None = None) -> date:
-    """First day a backfill may restore. Set MONITORING_DATE in config/pipeline.env."""
+    """First day a backfill may restore. Set MONITORING_DATE in local/pipeline.env."""
     raw = (env if env is not None else load_env()).get("MONITORING_DATE", "")
     if not raw:
-        raise ValueError("Set MONITORING_DATE in config/pipeline.env")
+        raise ValueError("Set MONITORING_DATE in local/pipeline.env")
     return date.fromisoformat(raw)
 
 
