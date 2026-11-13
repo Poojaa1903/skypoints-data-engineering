@@ -21,30 +21,23 @@ In a Snowflake worksheet (database `SKYPOINTS`, role that can create schemas):
 13. `gold/redemptions.sql`
 14. `run_pipeline.sql`
 
-## Upload the sample files
+Snowflake `COPY` does not read `.xlsx`. The country rows are `snowflake/seed/country_extract_20240115.csv`, the same text the local ingest writes from the three Excel files. The entrypoint copies that file, the flat file, the JSON, and the country lists out of the Git repo.
 
-From your laptop, in the project root, with [SnowSQL](https://docs.snowflake.com/en/user-guide/snowsql):
+## Run the pipeline
 
-```bash
-snowsql -a <account> -u <user> -d SKYPOINTS -s PUBLIC
-
-PUT file://config/iso_countries.csv @bronze.skypoints_stage/reference/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-PUT file://config/country_aliases.csv @bronze.skypoints_stage/reference/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-PUT file://data/members_20240115.txt @bronze.skypoints_stage/members_flat/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-PUT file://data/redemptions_20240115.json @bronze.skypoints_stage/redemptions/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-PUT file://snowflake/seed/country_extract_20240115.csv @bronze.skypoints_stage/country_xlsx/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-```
-
-Snowflake `COPY` does not read `.xlsx`. The seed CSV is the same text the local ingest writes from `AUS.xlsx`, `IND.xlsx` and `USA.xlsx`. In production an ingest job or Snowpark step would produce that shape.
-
-## Load the country lists, then run the day
+After the setup files above, run `run_pipeline.sql` once. That creates the entrypoint. Then:
 
 ```sql
-CALL silver.load_reference();
-CALL bronze.run_pipeline(DATE '2024-01-15');
+CALL bronze.run_pipeline();
 ```
 
-That one call is the whole pipeline: bronze → audit → silver → quality → gold.
+No date means: every source file from `MONITORING_DATE` (2024-01-15) through yesterday. The procedure copies those files out of the Git repo, loads bronze, and moves to silver only when the bronze audit passes. Gold runs only when the quality checks pass. A day with no file is skipped. A day already finished returns `SKIP`.
+
+To stop at a chosen day instead of yesterday:
+
+```sql
+CALL bronze.run_pipeline(DATE '2024-01-15');
+```
 
 ## What you should see
 

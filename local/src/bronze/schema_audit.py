@@ -28,6 +28,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+from bronze.land import feed_for
 from bronze.ingest import HEADER_MAP, read_flat_file
 
 FILE_AUDIT = "file_audit.csv"
@@ -128,14 +129,16 @@ def audit_day(bronze_dir: Path, day: date) -> list[AuditResult]:
 
 
 def files_for_day(bronze_dir: Path, day: date) -> list[tuple[str, Path]]:
+    folder = bronze_dir / day.isoformat()
+    if not folder.exists():
+        return []
     found: list[tuple[str, Path]] = []
-    for feed in ("members_flat", "country_xlsx", "redemptions"):
-        folder = bronze_dir / day.isoformat() / feed
-        if not folder.exists():
+    for path in sorted(folder.iterdir()):
+        if not path.is_file():
             continue
-        for path in sorted(folder.iterdir()):
-            if path.is_file():
-                found.append((feed, path))
+        feed = feed_for(path)
+        if feed is not None:
+            found.append((feed, path))
     return found
 
 

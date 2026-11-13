@@ -1,7 +1,8 @@
 """Bronze landing: copy each raw file, unchanged, into a dated folder.
 
-Layout:
-    outputs/bronze/<YYYY-MM-DD>/<feed>/<file>
+Layout, same shape as silver and gold. The date folder holds the raw files.
+Silver and gold clean them later.
+    outputs/bronze/<YYYY-MM-DD>/<file>
     outputs/bronze/<YYYY-MM-DD>/load_log.csv
 
 The folder date comes from the file name when the name has one
@@ -11,7 +12,7 @@ uses the run date, which defaults to yesterday.
 
 The date is written YYYY-MM-DD. A slash, as in 24/11/2020, cannot be a
 folder name. The same prefix is what cloud storage uses as a partition
-(s3://.../2020-11-24/members_flat/). The raw file is still one copy:
+(s3://.../2020-11-24/). The raw file is still one copy:
 rows for a different day are split later, in silver and gold.
 
 Rules:
@@ -141,7 +142,7 @@ def _land_all(input_dir, bronze_dir, choose_day, run_date: date, skip_undated_al
 
 
 def _land_one(source: Path, bronze_dir: Path, feed: str, day: date, run_date: date) -> LandingResult:
-    target = bronze_dir / day.isoformat() / feed / source.name
+    target = bronze_dir / day.isoformat() / source.name
     source_sha = _sha256(source)
     if target.exists():
         status = ALREADY_LANDED if _sha256(target) == source_sha else CONFLICT
@@ -169,7 +170,7 @@ def _land_one(source: Path, bronze_dir: Path, feed: str, day: date, run_date: da
 def _find_copy(bronze_dir: Path, feed: str, filename: str, sha: str) -> Path | None:
     if not bronze_dir.exists():
         return None
-    for found in bronze_dir.glob(f"*/{feed}/{filename}"):
+    for found in bronze_dir.glob(f"*/{filename}"):
         if found.is_file() and _sha256(found) == sha:
             return found
     return None

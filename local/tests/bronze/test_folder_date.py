@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from bronze.bronze import folder_date
+from bronze.land import folder_date
 
 RUN = date(2026, 11, 12)
 

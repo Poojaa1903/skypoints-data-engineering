@@ -306,7 +306,7 @@ def _volume(source_file: str, counts: list[int]) -> FileVolume:
 
 def _landed(bronze_dir: Path, feed: str, load_date: date, pattern: str) -> list[Path]:
     """Files in bronze for one feed and load date. Empty if nothing landed."""
-    folder = bronze_dir / load_date.isoformat() / feed
+    folder = bronze_dir / load_date.isoformat()
     return sorted(folder.glob(pattern)) if folder.exists() else []
 
 

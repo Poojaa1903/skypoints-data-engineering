@@ -39,7 +39,7 @@ def test_days_outside_the_window_are_not_landed(tmp_path):
     assert result.processed == [START]
     assert not (bronze / "2020-01-01").exists()
     assert not (bronze / "2024-02-01").exists()
-    assert (bronze / "2024-01-15" / "members_flat" / "members_20240115.txt").exists()
+    assert (bronze / "2024-01-15" / "members_20240115.txt").exists()
     assert (silver / "2024-01-15" / "quarantine.csv").exists()
     assert (gold / "2024-01-15" / "Table_USA.csv").exists()
     assert not (silver / "2024-01-16").exists()
@@ -68,7 +68,7 @@ def test_a_file_with_no_date_is_landed_once_on_the_monitoring_date(tmp_path):
 
     first = backfill(source, bronze, silver, gold, START, END, land_only=True)
     assert first.processed == []
-    assert (bronze / "2024-01-15" / "country_xlsx" / "AUS.xlsx").exists()
+    assert (bronze / "2024-01-15" / "AUS.xlsx").exists()
     assert len([path for path in bronze.iterdir() if path.is_dir()]) == 1
 
     second = backfill(source, bronze, silver, gold, START, END, land_only=True)

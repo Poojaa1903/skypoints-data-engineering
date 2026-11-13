@@ -58,12 +58,12 @@ def test_the_same_file_is_not_logged_twice(tmp_path):
 
 def test_a_type_change_is_logged_as_cdc(tmp_path):
     bronze = tmp_path / "bronze"
-    day = bronze / "2024-01-15" / "members_flat"
+    day = bronze / "2024-01-15"
     day.mkdir(parents=True)
     (day / "members_20240115.txt").write_text(GOOD, encoding="utf-8")
     audit_day(bronze, START)
 
-    later = bronze / "2024-01-16" / "members_flat"
+    later = bronze / "2024-01-16"
     later.mkdir(parents=True)
     changed = HEADER + "|D|Elena|223457|20101012|20121013|GLD|Sam|CA|USA|not-a-number|A\n"
     (later / "members_20240116.txt").write_text(changed, encoding="utf-8")
@@ -86,6 +86,6 @@ def test_a_broken_file_stays_in_bronze_and_does_not_reach_silver(tmp_path):
 
     assert result.processed == []
     assert result.blocked == [START]
-    assert (bronze / "2024-01-15" / "members_flat" / "members_20240115.txt").exists()
+    assert (bronze / "2024-01-15" / "members_20240115.txt").exists()
     assert not silver.exists() or not any(silver.rglob("*.csv"))
     assert _rows(bronze / "2024-01-15" / "file_audit.csv")[0]["status"] == "FAILED"

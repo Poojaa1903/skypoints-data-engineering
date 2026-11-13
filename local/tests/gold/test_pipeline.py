@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from bronze.bronze import land_files
+from bronze.land import land_files
 from pipeline import main, person_key, run
 
 ROOT = Path(__file__).resolve().parents[3]

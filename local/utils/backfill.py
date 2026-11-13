@@ -23,8 +23,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from bronze.bronze import CONFLICT, land_window
-from bronze.bronze import LandingResult
+from bronze.land import CONFLICT, land_window
+from bronze.land import LandingResult
 from bronze.schema_audit import FAILED, audit_day
 from pipeline import run
 from utils.settings import load_paths, monitoring_date, previous_day
@@ -95,7 +95,7 @@ def bronze_days(bronze_dir: Path, start: date, end: date) -> list[date]:
             day = date.fromisoformat(day_dir.name)
         except ValueError:
             continue
-        has_file = any(path.is_file() for path in day_dir.rglob("*") if path.parent != day_dir)
+        has_file = any(path.is_file() and path.suffix.lower() in {".txt", ".xlsx", ".json"} for path in day_dir.iterdir())
         if start <= day <= end and has_file:
             found.add(day)
     return sorted(found)
