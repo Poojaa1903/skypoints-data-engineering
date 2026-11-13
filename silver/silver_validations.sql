@@ -24,14 +24,17 @@ SELECT source_file, row_num, 'ENROLLMENT_DATE_MISSING'
 FROM silver.member_stg
 WHERE enrollment_date IS NULL;
 
--- 2. The same member_id twice inside one file.
+-- 2. Key uniqueness. member_id must be unique inside one file on one day.
 --    The same id in two country files is not a duplicate.
+--    A duplicate is quarantined as DUPLICATE_MEMBER_ID and the quality gate FAILs.
+--    This query must return no rows.
 SELECT source_file, member_id, COUNT(*) AS copies
 FROM silver.member_stg
-GROUP BY source_file, member_id
+GROUP BY source_file, load_date, member_id
 HAVING COUNT(*) > 1;
 
--- 3. A flight date after the run date is bad data.
+-- 3. A flight date after the file date is quarantined as FLIGHT_DATE_IN_FUTURE.
+--    This query must return no rows.
 SELECT source_file, row_num, member_id, last_flight_date
 FROM silver.member_stg
 WHERE last_flight_date > load_date;

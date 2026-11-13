@@ -115,6 +115,12 @@ resolved AS (
         ON iso2.alpha2 = UPPER(TRIM(c.source_country))
     LEFT JOIN silver.country_alias alias
         ON alias.source_code = UPPER(TRIM(c.source_country))
+),
+keyed AS (
+    SELECT
+        r.*,
+        COUNT(*) OVER (PARTITION BY r.load_date, r.source_file, r.member_id) AS id_copies
+    FROM resolved r
 )
 SELECT
     source_file, source_system, source_scope, source_country, row_num, load_date,
@@ -128,9 +134,11 @@ SELECT
         WHEN source_country = 'USA' AND silver.us_date_is_ambiguous(TRIM(enrollment_raw)) THEN 'ENROLLMENT_DATE_AMBIGUOUS'
         WHEN enrollment_date IS NULL THEN 'ENROLLMENT_DATE_INVALID'
         WHEN source_country = 'USA' AND silver.us_date_is_ambiguous(TRIM(flight_raw)) THEN 'FLIGHT_DATE_AMBIGUOUS'
+        WHEN id_copies > 1 THEN 'DUPLICATE_MEMBER_ID'
+        WHEN last_flight_date > load_date THEN 'FLIGHT_DATE_IN_FUTURE'
         ELSE NULL
     END AS reject_rule
-FROM resolved;
+FROM keyed;
 
 CREATE OR REPLACE VIEW silver.member_typed AS
 SELECT

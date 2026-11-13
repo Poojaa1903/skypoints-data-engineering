@@ -143,6 +143,54 @@ BEGIN
     UNION ALL
     SELECT
         :AS_OF,
+        'key_uniqueness',
+        IFF(dupes = 0, 'PASS', 'FAIL'),
+        TO_VARCHAR(dupes),
+        'member_id unique inside one file and one day',
+        dupes || ' duplicate member ids'
+    FROM (
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM (
+                    SELECT source_file, member_id
+                    FROM silver.member_stg
+                    WHERE load_date = :AS_OF
+                    GROUP BY source_file, member_id
+                    HAVING COUNT(*) > 1
+                )
+            ) + (
+                SELECT COUNT(*)
+                FROM silver.member_quarantine
+                WHERE load_date = :AS_OF
+                  AND reject_rule = 'DUPLICATE_MEMBER_ID'
+            ) AS dupes
+    )
+    UNION ALL
+    SELECT
+        :AS_OF,
+        'flight_after_load_date',
+        IFF(future_flights = 0, 'PASS', 'FAIL'),
+        TO_VARCHAR(future_flights),
+        'last flight cannot be after the file date',
+        future_flights || ' rows'
+    FROM (
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM silver.member_stg
+                WHERE load_date = :AS_OF
+                  AND last_flight_date > load_date
+            ) + (
+                SELECT COUNT(*)
+                FROM silver.member_quarantine
+                WHERE load_date = :AS_OF
+                  AND reject_rule = 'FLIGHT_DATE_IN_FUTURE'
+            ) AS future_flights
+    )
+    UNION ALL
+    SELECT
+        :AS_OF,
         'row_count',
         CASE
             WHEN :prev_rows IS NULL OR :prev_rows = 0 THEN 'PASS'
