@@ -1,7 +1,7 @@
 VENV ?= .venv
 PY := $(VENV)/bin/python
 
-include config/paths.env
+include config/pipeline.env
 
 .PHONY: setup test bronze run clean
 

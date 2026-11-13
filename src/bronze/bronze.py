@@ -180,9 +180,9 @@ def main(argv: list[str] | None = None) -> int:
     paths = load_paths()
     parser = argparse.ArgumentParser(description="Land raw files into bronze")
     parser.add_argument("--input", default=paths["SOURCE_DIR"], type=Path,
-                        help="folder bronze reads, from config/paths.env")
+                        help="folder bronze reads, from config/pipeline.env")
     parser.add_argument("--bronze", default=paths["BRONZE_DIR"], type=Path,
-                        help="folder bronze writes, from config/paths.env")
+                        help="folder bronze writes, from config/pipeline.env")
     parser.add_argument("--load-date", default=previous_day().isoformat(), type=date.fromisoformat,
                         help="run date, default yesterday; files with no date in the name use this")
     args = parser.parse_args(argv)

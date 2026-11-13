@@ -21,7 +21,7 @@ def _dirs(tmp_path: Path):
 
 
 def test_monitoring_date_is_read_from_the_env_file(tmp_path):
-    env_file = tmp_path / "paths.env"
+    env_file = tmp_path / "pipeline.env"
     env_file.write_text("MONITORING_DATE=2024-01-15\nSOURCE_DIR=data/input\n", encoding="utf-8")
     env = load_env(env_file)
     assert monitoring_date(env) == START

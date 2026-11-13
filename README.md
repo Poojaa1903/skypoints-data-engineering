@@ -12,7 +12,7 @@ make test
 make run
 ```
 
-`make run` restores every file from `MONITORING_DATE` in `config/paths.env` through yesterday. It copies what is missing into `outputs/bronze/<date>/`, then writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. A day that is already complete is skipped. A day with no file is not a gap. The sample monitoring date is `2024-01-15`.
+`make run` restores every file from `MONITORING_DATE` in `config/pipeline.env` through yesterday. It copies what is missing into `outputs/bronze/<date>/`, then writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. A day that is already complete is skipped. A day with no file is not a gap. The sample monitoring date is `2024-01-15`.
 
 On the sample files the run writes 5 country tables (12 members), 2 quarantined rows, 1 review row (Mike), and 2 redemptions joined to Elena.
 
@@ -25,7 +25,7 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 ## Approach
 
 - **Bronze** (`outputs/bronze/<date>/`): raw text, never changed. JSON kept whole. `file_audit.csv` logs every file. `schema_audit.csv` logs each column name and type, and a change when a column is new, missing, or a different type. A file that fails these checks does not go to silver.
-- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. A bad row goes to quarantine. `quality_report.csv` then checks the whole day. A FAIL stops gold. A WARN does not. Thresholds are in `config/quality.env`.
+- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. A bad row goes to quarantine. `quality_report.csv` then checks the whole day. A FAIL stops gold. A WARN does not. Thresholds are in `config/pipeline.env`.
 - **Gold** (`outputs/gold/<date>/`): one table per country and the review list, for the file date. A redemption is filed under its transaction date, so a file from 24 Nov that contains a 25 Nov transaction creates the 25 Nov folder.
 
 ## Decisions

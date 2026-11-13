@@ -1,6 +1,6 @@
 """Restore missing days from the monitoring date through yesterday.
 
-config/paths.env sets MONITORING_DATE. A run looks at every source file
+config/pipeline.env sets MONITORING_DATE. A run looks at every source file
 from that day through yesterday:
 
 * Bronze: copy a file that is not there yet. A file already copied, with

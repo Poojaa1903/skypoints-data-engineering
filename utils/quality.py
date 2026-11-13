@@ -3,7 +3,7 @@
 Each check is PASS, WARN or FAIL. A WARN is reported and the day continues.
 A FAIL writes the silver quarantine and this report, and does not write gold.
 
-Thresholds live in config/quality.env. A file with fewer than
+Thresholds live in config/pipeline.env. A file with fewer than
 REJECT_MIN_ROWS rows warns instead of failing, because one bad row in the
 sample extract is 33 percent and must not stop the demo.
 """
@@ -15,9 +15,8 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from utils.settings import PROJECT_ROOT
+from utils.settings import ENV_FILE, load_env
 
-QUALITY_FILE = PROJECT_ROOT / "config" / "quality.env"
 REPORT_COLUMNS = ["check", "status", "value", "threshold", "detail"]
 
 PASS = "PASS"
@@ -64,8 +63,8 @@ class Check:
     detail: str
 
 
-def load_limits(path: Path = QUALITY_FILE) -> Limits:
-    raw = _read_env(path)
+def load_limits(path: Path = ENV_FILE) -> Limits:
+    raw = load_env(path) if path.exists() else {}
     return Limits(
         reject_warn=float(raw.get("REJECT_WARN", 0.02)),
         reject_fail=float(raw.get("REJECT_FAIL", 0.05)),
@@ -211,16 +210,3 @@ def previous_member_count(silver_dir: Path, as_of: date) -> int | None:
 
 def _reject_threshold(limits: Limits) -> str:
     return f"warn > {limits.reject_warn:.0%}, fail > {limits.reject_fail:.0%} from {limits.reject_min_rows} rows"
-
-
-def _read_env(path: Path) -> dict[str, str]:
-    if not path.exists():
-        return {}
-    values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        values[key.strip()] = value.strip()
-    return values
