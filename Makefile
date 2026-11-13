@@ -14,8 +14,8 @@ test:
 bronze:
 	PYTHONPATH=src $(PY) -m skypoints.bronze --input data/input --bronze data/bronze --load-date $(AS_OF)
 
-run:
-	PYTHONPATH=src $(PY) -m skypoints.pipeline --input data/input --output outputs --as-of $(AS_OF)
+run: bronze
+	PYTHONPATH=src $(PY) -m skypoints.pipeline --bronze data/bronze --output outputs --as-of $(AS_OF)
 
 clean:
 	rm -rf outputs data/bronze data/silver data/gold .pytest_cache

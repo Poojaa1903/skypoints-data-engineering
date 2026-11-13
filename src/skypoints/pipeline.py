@@ -1,7 +1,7 @@
 """End-to-end pipeline: sample files in, per-country tables out.
 
 Steps:
-1. Read the flat file and the country xlsx files (raw text).
+1. Read the raw files landed in bronze for the load date (raw text).
 2. Validate each row. Bad rows go to quarantine.
 3. Parse dates, resolve countries, derive age and stale flag.
 4. Pick the latest record for each person (identity rule below).
@@ -90,7 +90,8 @@ def person_key(name: str | None, dob: date | None, *, scope: str, member_id: str
     return f"{scope}:{member_id}"
 
 
-def run(input_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAULT_CONFIG) -> PipelineSummary:
+def run(bronze_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAULT_CONFIG) -> PipelineSummary:
+    """Read the files landed in bronze for `as_of` (the load date) and write the outputs."""
     lookups = load_lookups(config_dir / "iso_countries.csv", config_dir / "country_aliases.csv")
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -99,7 +100,7 @@ def run(input_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAU
     unmapped: set[str] = set()
 
     # 1-3. Flat member file
-    for path in sorted(input_dir.glob("members_*.txt")):
+    for path in _landed(bronze_dir, "members_flat", as_of, "members_*.txt"):
         details = [r for r in read_flat_file(path) if r.record_type == "D"]
         dups = duplicate_keys(r.member_id for r in details if not r.error)
         for rec in details:
@@ -131,7 +132,7 @@ def run(input_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAU
             ))
 
     # 1-3. Country xlsx files
-    for path in sorted(input_dir.glob("*.xlsx")):
+    for path in _landed(bronze_dir, "country_xlsx", as_of, "*.xlsx"):
         source_country = path.stem.upper()
         formats = XLSX_FORMATS.get(source_country)
         if formats is None:
@@ -189,7 +190,7 @@ def run(input_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAU
 
     # 6. Redemptions
     txns: list[Transaction] = []
-    for path in sorted(input_dir.glob("redemptions_*.json")):
+    for path in _landed(bronze_dir, "redemptions", as_of, "redemptions_*.json"):
         flat = flatten_redemptions(read_redemption_json(path))
         txns.extend(flat.rows)
         for reject in flat.rejects:
@@ -218,12 +219,12 @@ def run(input_dir: Path, output_dir: Path, as_of: date, config_dir: Path = DEFAU
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="SkyPoints member pipeline")
-    parser.add_argument("--input", required=True, type=Path)
+    parser.add_argument("--bronze", default=Path("data/bronze"), type=Path)
     parser.add_argument("--output", default=Path("outputs"), type=Path)
     parser.add_argument("--as-of", required=True, type=date.fromisoformat)
     args = parser.parse_args(argv)
 
-    summary = run(args.input, args.output, args.as_of)
+    summary = run(args.bronze, args.output, args.as_of)
     print(f"Tables written to {args.output}:")
     for table, count in summary.tables.items():
         print(f"  {table}: {count} members")
@@ -234,6 +235,12 @@ def main(argv: list[str] | None = None) -> int:
     if summary.unmapped_countries:
         print(f"Unmapped country codes registered: {', '.join(summary.unmapped_countries)}")
     return 0
+
+
+def _landed(bronze_dir: Path, feed: str, load_date: date, pattern: str) -> list[Path]:
+    """Files in bronze for one feed and load date. Empty if nothing landed."""
+    folder = bronze_dir / feed / load_date.isoformat()
+    return sorted(folder.glob(pattern)) if folder.exists() else []
 
 
 def _write_table(path: Path, cands: list[Candidate], as_of: date) -> None:

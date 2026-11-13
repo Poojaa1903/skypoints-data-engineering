@@ -1,4 +1,5 @@
-"""End-to-end tests for the pipeline on the sample files in data/input/.
+"""End-to-end tests for the pipeline. The sample in data/input/ is landed into
+a temporary bronze folder first, then the pipeline reads only from bronze.
 
 Identity rule (agreed): a person is matched across sources only when
 name and DOB both match. Otherwise a record is scoped to its own file,
@@ -18,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from skypoints.bronze import land_files
 from skypoints.pipeline import main, person_key, run
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,10 +27,18 @@ INPUT = ROOT / "data" / "input"
 AS_OF = date(2024, 1, 15)
 
 
+def land(tmp_path: Path) -> Path:
+    """Copy the sample source files into a fresh bronze folder, as make bronze does."""
+    bronze = tmp_path / "bronze"
+    land_files(INPUT, bronze, AS_OF)
+    return bronze
+
+
 @pytest.fixture(scope="module")
 def output(tmp_path_factory):
-    out = tmp_path_factory.mktemp("out")
-    summary = run(INPUT, out, AS_OF)
+    base = tmp_path_factory.mktemp("run")
+    out = base / "out"
+    summary = run(land(base), out, AS_OF)
     return out, summary
 
 
@@ -124,7 +134,9 @@ def test_same_id_in_different_countries_stays_separate():
 
 # --- command line -----------------------------------------------------
 
-def test_cli_runs_and_writes_outputs(tmp_path):
-    code = main(["--input", str(INPUT), "--output", str(tmp_path), "--as-of", "2024-01-15"])
+def test_cli_runs_from_bronze_and_writes_outputs(tmp_path):
+    bronze = land(tmp_path)
+    out = tmp_path / "out"
+    code = main(["--bronze", str(bronze), "--output", str(out), "--as-of", "2024-01-15"])
     assert code == 0
-    assert (tmp_path / "Table_USA.csv").exists()
+    assert (out / "Table_USA.csv").exists()
