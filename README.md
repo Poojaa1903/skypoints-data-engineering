@@ -12,7 +12,7 @@ make test
 make run
 ```
 
-`make run` reads `data/input/`, copies each file into `outputs/bronze/<feed>/<date>/`, and writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. The daily run date is yesterday. These sample files are dated 2024-01-15, so the demo is `make run AS_OF=2024-01-15`.
+`make run` restores every file from `MONITORING_DATE` in `config/paths.env` through yesterday. It copies what is missing into `outputs/bronze/<date>/`, then writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. A day that is already complete is skipped. A day with no file is not a gap. The sample monitoring date is `2024-01-15`.
 
 On the sample files the run writes 5 country tables (12 members), 2 quarantined rows, 1 review row (Mike), and 2 redemptions joined to Elena.
 

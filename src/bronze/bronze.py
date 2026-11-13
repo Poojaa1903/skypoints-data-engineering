@@ -48,6 +48,7 @@ LANDED = "LANDED"
 ALREADY_LANDED = "ALREADY_LANDED"
 CONFLICT = "CONFLICT"
 UNKNOWN_FEED = "UNKNOWN_FEED"
+OUT_OF_WINDOW = "OUT_OF_WINDOW"
 
 
 @dataclass(frozen=True)
@@ -70,8 +71,8 @@ def feed_for(path: Path) -> str | None:
     return None
 
 
-def folder_date(filename: str, run_date: date) -> date:
-    """Date folder for one raw file. From the name, otherwise the run date."""
+def date_in_name(filename: str) -> date | None:
+    """The date written in a file name, or None when the name has no date."""
     stem = Path(filename).stem
     year_first = _YEAR_FIRST.search(stem)
     if year_first:
@@ -84,44 +85,95 @@ def folder_date(filename: str, run_date: date) -> date:
         parsed = _safe_date(year, month, day)
         if parsed is not None:
             return parsed
-    return run_date
+    return None
+
+
+def folder_date(filename: str, run_date: date) -> date:
+    """Date folder for one raw file. From the name, otherwise the run date."""
+    return date_in_name(filename) or run_date
 
 
 def land_files(input_dir: Path, bronze_dir: Path, load_date: date) -> list[LandingResult]:
+    """Land every source file. A name with no date uses load_date."""
+    return _land_all(input_dir, bronze_dir, lambda name: folder_date(name, load_date), load_date)
+
+
+def land_window(input_dir: Path, bronze_dir: Path, start: date, end: date) -> list[LandingResult]:
+    """Land files whose date is from start through end.
+
+    A file named with an earlier or later date is left where it is.
+    A file with no date in the name (AUS.xlsx) is landed once, on start,
+    and is not copied onto every later day. If that same file is already
+    in bronze, it is not copied again.
+    """
+    if end < start:
+        raise ValueError(f"monitoring date {start.isoformat()} is after {end.isoformat()}")
+
+    def choose(name: str) -> date | None:
+        named = date_in_name(name)
+        if named is None:
+            return start
+        if named < start or named > end:
+            return None
+        return named
+
+    return _land_all(input_dir, bronze_dir, choose, end, skip_undated_already_copied=True)
+
+
+def _land_all(input_dir, bronze_dir, choose_day, run_date: date, skip_undated_already_copied: bool = False):
     results: list[LandingResult] = []
     for source in sorted(p for p in input_dir.iterdir() if p.is_file()):
         feed = feed_for(source)
         if feed is None:
             results.append(LandingResult(source.name, None, UNKNOWN_FEED, None))
             continue
-
-        landed_on = folder_date(source.name, load_date)
-        target = bronze_dir / feed / landed_on.isoformat() / source.name
-        source_sha = _sha256(source)
-
-        if target.exists():
-            status = ALREADY_LANDED if _sha256(target) == source_sha else CONFLICT
-            results.append(LandingResult(source.name, feed, status, target))
+        day = choose_day(source.name)
+        if day is None:
+            results.append(LandingResult(source.name, feed, OUT_OF_WINDOW, None))
             continue
-
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
-        if _sha256(target) != source_sha:
-            target.unlink()
-            raise OSError(f"copy of {source.name} does not match the source")
-
-        _append_log(bronze_dir / "load_log.csv", {
-            "feed": feed,
-            "source_file": source.name,
-            "bronze_path": target.relative_to(bronze_dir).as_posix(),
-            "load_date": landed_on.isoformat(),
-            "run_date": load_date.isoformat(),
-            "sha256": source_sha,
-            "size_bytes": target.stat().st_size,
-            "loaded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        })
-        results.append(LandingResult(source.name, feed, LANDED, target))
+        if skip_undated_already_copied and date_in_name(source.name) is None:
+            existing = _find_copy(bronze_dir, feed, source.name, _sha256(source))
+            if existing is not None:
+                results.append(LandingResult(source.name, feed, ALREADY_LANDED, existing))
+                continue
+        results.append(_land_one(source, bronze_dir, feed, day, run_date))
     return results
+
+
+def _land_one(source: Path, bronze_dir: Path, feed: str, day: date, run_date: date) -> LandingResult:
+    target = bronze_dir / feed / day.isoformat() / source.name
+    source_sha = _sha256(source)
+    if target.exists():
+        status = ALREADY_LANDED if _sha256(target) == source_sha else CONFLICT
+        return LandingResult(source.name, feed, status, target)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    if _sha256(target) != source_sha:
+        target.unlink()
+        raise OSError(f"copy of {source.name} does not match the source")
+
+    _append_log(bronze_dir / "load_log.csv", {
+        "feed": feed,
+        "source_file": source.name,
+        "bronze_path": target.relative_to(bronze_dir).as_posix(),
+        "load_date": day.isoformat(),
+        "run_date": run_date.isoformat(),
+        "sha256": source_sha,
+        "size_bytes": target.stat().st_size,
+        "loaded_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    })
+    return LandingResult(source.name, feed, LANDED, target)
+
+
+def _find_copy(bronze_dir: Path, feed: str, filename: str, sha: str) -> Path | None:
+    feed_dir = bronze_dir / feed
+    if not feed_dir.exists():
+        return None
+    for found in feed_dir.glob(f"*/{filename}"):
+        if found.is_file() and _sha256(found) == sha:
+            return found
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:

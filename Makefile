@@ -1,8 +1,5 @@
 VENV ?= .venv
 PY := $(VENV)/bin/python
-# Daily run is yesterday. The sample files are dated 2024-01-15:
-#   make run AS_OF=2024-01-15
-AS_OF ?= $(shell date -d yesterday +%Y-%m-%d)
 
 include config/paths.env
 
@@ -15,11 +12,12 @@ setup:
 test:
 	$(PY) -m pytest -q
 
+# Restore gaps from MONITORING_DATE through yesterday.
 bronze:
-	PYTHONPATH=src $(PY) -m bronze.bronze --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --load-date $(AS_OF)
+	PYTHONPATH=src $(PY) -m backfill --land-only --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR)
 
-run: bronze
-	PYTHONPATH=src $(PY) -m pipeline --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR) --as-of $(AS_OF)
+run:
+	PYTHONPATH=src $(PY) -m backfill --input $(SOURCE_DIR) --bronze $(BRONZE_DIR) --silver $(SILVER_DIR) --gold $(GOLD_DIR)
 
 clean:
 	rm -rf $(OUTPUT_DIR) $(BRONZE_DIR) $(SILVER_DIR) $(GOLD_DIR) .pytest_cache

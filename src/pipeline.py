@@ -82,6 +82,7 @@ class PipelineSummary:
     orphan_redemptions: int = 0
     removals: int = 0
     unmapped_countries: list[str] = field(default_factory=list)
+    redemption_days: list[date] = field(default_factory=list)
 
 
 def person_key(name: str | None, dob: date | None, *, scope: str, member_id: str) -> str:
@@ -211,7 +212,7 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
         if c.scope == "FLAT" and c.key in result.winners
     }
     joined = join_to_members(txns, flat_winner)
-    _write_redemptions_by_date(gold_dir, joined, as_of)
+    summary.redemption_days = _write_redemptions_by_date(gold_dir, joined, as_of)
     summary.matched_redemptions = len(joined.matched)
     summary.orphan_redemptions = len(joined.orphans)
 
@@ -280,7 +281,7 @@ def _write_table(path: Path, cands: list[Candidate], as_of: date) -> None:
     _write_csv(path, TABLE_COLUMNS, rows)
 
 
-def _write_redemptions_by_date(gold_dir: Path, joined, as_of: date) -> None:
+def _write_redemptions_by_date(gold_dir: Path, joined, as_of: date) -> list[date]:
     """One redemptions file per transaction date.
 
     A file dated 2024-01-15 that contains a transaction on 2024-01-10
@@ -295,6 +296,7 @@ def _write_redemptions_by_date(gold_dir: Path, joined, as_of: date) -> None:
         by_day.setdefault(_event_day(txn.txn_date, as_of), []).append(_txn_row(txn, "", "ORPHAN"))
     for day, rows in sorted(by_day.items()):
         _write_csv(_day_dir(gold_dir, day) / "redemptions.csv", columns, rows)
+    return sorted(by_day)
 
 
 def _event_day(raw: str | None, fallback: date) -> date:
