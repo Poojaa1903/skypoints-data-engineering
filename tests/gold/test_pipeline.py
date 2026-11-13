@@ -1,4 +1,4 @@
-"""End-to-end tests for the pipeline. The sample in data/input/ is landed into
+"""End-to-end tests for the pipeline. The sample in data/ is landed into
 a temporary bronze folder first, then the pipeline reads only from bronze.
 
 Identity rule (agreed): a person is matched across sources only when
@@ -23,7 +23,7 @@ from bronze.bronze import land_files
 from pipeline import main, person_key, run
 
 ROOT = Path(__file__).resolve().parents[2]
-INPUT = ROOT / "data" / "input"
+INPUT = ROOT / "data"
 AS_OF = date(2024, 1, 15)
 
 

@@ -45,7 +45,7 @@ def txn(txn_id, status="COMPLETED", miles=12000, feed_date="20240115", member_id
 # --- flatten ----------------------------------------------------------
 
 def test_sample_feed_flattens_to_two_transactions():
-    records = read_redemption_json(ROOT / "data" / "input" / "redemptions_20240115.json")
+    records = read_redemption_json(ROOT / "data" / "redemptions_20240115.json")
     result = flatten_redemptions(records)
 
     assert result.rejects == []

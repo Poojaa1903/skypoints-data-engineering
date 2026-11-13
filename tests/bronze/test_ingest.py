@@ -1,7 +1,7 @@
 """Tests for reading the three source feeds into raw (text) records.
 
 Bronze keeps values exactly as they arrived. Nothing is typed or cleaned
-here. These tests read the real sample files in data/input/.
+here. These tests read the real sample files in data/.
 
 * Flat file: pipe-delimited, leading "|", H and D records.
 * Country xlsx: column names differ per country. Each header is mapped to
@@ -17,7 +17,7 @@ import pytest
 from bronze.ingest import read_country_xlsx, read_flat_file, read_redemption_json
 
 ROOT = Path(__file__).resolve().parents[2]
-INPUT = ROOT / "data" / "input"
+INPUT = ROOT / "data"
 
 
 # --- flat file --------------------------------------------------------
