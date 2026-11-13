@@ -1,8 +1,8 @@
--- Dataset quality gate. Same role as local/utils/quality.py.
+-- Dataset quality gate.
 -- Dialect: Snowflake.
 --
 -- Writes silver.quality_report for the day. Any FAIL means gold must not run.
--- Thresholds match local/pipeline.env. Small files (under 20 rows) warn on
+-- Small files (under 20 rows) warn on
 -- reject rate instead of failing, so one bad row in a 3-row sample does not
 -- stop the demo.
 --

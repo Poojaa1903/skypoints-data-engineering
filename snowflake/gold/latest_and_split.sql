@@ -1,5 +1,5 @@
 -- Latest record wins, then load gold.member for one day.
--- Dialect: Snowflake. Same rule as local/src/gold/latest.py and local/src/gold/gold.py.
+-- Dialect: Snowflake.
 --
 -- A person is the same across files only when name and date of birth match.
 -- Otherwise the id is scoped to its file, so AUS id 1 is not USA id 1.

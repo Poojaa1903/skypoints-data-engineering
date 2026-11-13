@@ -1,8 +1,7 @@
 -- Stage and file formats for the Snowflake pipeline.
 -- Dialect: Snowflake. Run once after the bronze / silver / gold DDL files.
 --
--- Files are uploaded with SnowSQL PUT into dated prefixes that match
--- the local bronze layout:
+-- Files are copied from the Git repo into these prefixes:
 --   @skypoints_stage/members_flat/2024-01-15/members_20240115.txt
 --   @skypoints_stage/redemptions/2024-01-15/redemptions_20240115.json
 --   @skypoints_stage/country_xlsx/2024-01-15/country_extract_20240115.csv
@@ -10,7 +9,7 @@
 --   @skypoints_stage/reference/country_aliases.csv
 --
 -- Snowflake COPY does not read .xlsx. The country seed CSV is the same
--- text shape local bronze/ingest.py produces from AUS.xlsx, IND.xlsx and
+-- text copied from AUS.xlsx, IND.xlsx and
 -- USA.xlsx. In production an ingest job or Snowpark step would write
 -- that CSV (or land rows directly) before this load.
 

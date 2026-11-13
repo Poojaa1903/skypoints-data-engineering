@@ -1,7 +1,4 @@
--- Typed member rows, built from bronze. Both engines read this shape.
--- Snowflake runs this file as written.
--- Locally, make run does the same rules in Python; it does not execute
--- this file. tests/gold/test_sql_rules.py checks the shared expressions.
+-- Typed member rows, built from bronze.
 --
 -- member_parsed is every detail row, with a reject_rule when it fails.
 -- member_typed is only the rows that passed. silver_load.sql reads both.

@@ -10,7 +10,7 @@ What is wrong in the sample, and what the pipeline does with it.
 | `Agent_Name` blank in the sample staging table | brief | Kept when the file has it (`Sam` on every flat-file row). |
 | Staging column named `County` | brief | Named `country_code`. |
 | `AU`, `USA`, `PHIL` mixed | flat file | ISO list, then alias file. `AU` → `AUS`, `PHIL` → `PHL`. |
-| Different columns and date formats per country file | xlsx | One header map in `ingest.py`. Date format chosen per file. |
+| Different columns and date formats per country file | xlsx | `snowflake/seed/country_extract_20240115.csv` uses one column set. Date format is chosen per country in `member_typed.sql`. |
 | `2021-13-13` | AUS.xlsx | Quarantine, rule `ENROLLMENT_DATE_INVALID`. |
 | Text `NULL` in DOB | AUS.xlsx | Treated as missing. Age is blank. Row still loads. |
 | `1052022` and `1152022` | USA.xlsx | Each can be two real dates. Quarantine, rule `..._AMBIGUOUS`. |

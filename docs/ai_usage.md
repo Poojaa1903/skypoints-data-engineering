@@ -8,4 +8,4 @@ Cursor was used to draft code, tests and SQL. I checked every result against the
 
 3. **Ambiguous USA dates.** `1152022` is 15 January or 5 November. The first draft would have picked one. Those rows are quarantined instead.
 
-AI output was not committed until `make test` passed.
+AI output was not kept until it matched the sample files.

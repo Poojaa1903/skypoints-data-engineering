@@ -1,5 +1,5 @@
 -- Land one day's files from the stage into bronze tables.
--- Dialect: Snowflake. Same role as local utils/backfill land + ingest.
+-- Dialect: Snowflake.
 --
 -- Before the first sample run, upload the files (from the project root,
 -- with SnowSQL connected to your account):
@@ -56,7 +56,7 @@ BEGIN
 
     flat_count := (SELECT COUNT(*) FROM bronze.member_flat_raw WHERE load_date = :AS_OF);
 
-    -- Country extracts (seed CSV that matches local bronze ingest text).
+    -- Country extracts. The seed CSV keeps the Excel values as text.
     EXECUTE IMMEDIATE
         'COPY INTO bronze.country_landing '
         || 'FROM @bronze.skypoints_stage/country_xlsx/' || :day_path || '/ '

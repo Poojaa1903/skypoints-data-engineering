@@ -7,7 +7,7 @@
 
 CREATE SCHEMA IF NOT EXISTS silver;
 
--- The same files the Python pipeline reads: config/iso_countries.csv
+-- config/iso_countries.csv
 -- and config/country_aliases.csv. Load them before silver_load.sql
 -- if you want AU -> AUS and PHIL -> PHL. An empty table does not
 -- fail the load; unknown codes stay UNMAPPED.
@@ -88,8 +88,7 @@ CREATE TABLE IF NOT EXISTS silver.member_quarantine (
     modified_at          TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );
 
--- Dataset checks for one day. A FAIL stops gold. Same idea as
--- outputs/silver/<date>/quality_report.csv on the local run.
+-- Dataset checks for one day. A FAIL stops gold.
 CREATE TABLE IF NOT EXISTS silver.quality_report (
     load_date            DATE          NOT NULL,
     check_name           VARCHAR       NOT NULL,

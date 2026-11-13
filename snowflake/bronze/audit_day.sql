@@ -1,4 +1,4 @@
--- Schema and file audit for one day. Same role as local schema_audit.py.
+-- Schema and file audit for one day.
 -- Dialect: Snowflake.
 --
 -- Writes bronze.file_audit and bronze.schema_audit. A feed with zero rows

@@ -1,6 +1,6 @@
 # Snowflake pipeline
 
-Same rules as the local Python run. This folder is what you execute in Snowflake.
+This folder is the pipeline. Run it in Snowflake.
 
 ## One-time setup
 
@@ -21,7 +21,7 @@ In a Snowflake worksheet (database `SKYPOINTS`, role that can create schemas):
 13. `gold/redemptions.sql`
 14. `run_pipeline.sql`
 
-Snowflake `COPY` does not read `.xlsx`. The country rows are `snowflake/seed/country_extract_20240115.csv`, the same text the local ingest writes from the three Excel files. The entrypoint copies that file, the flat file, the JSON, and the country lists out of the Git repo.
+Snowflake `COPY` does not read `.xlsx`. The country rows are `snowflake/seed/country_extract_20240115.csv`, copied from the three Excel files with the values kept as text. The entrypoint copies that file, the flat file, the JSON, and the country lists out of the Git repo.
 
 ## Run the pipeline
 

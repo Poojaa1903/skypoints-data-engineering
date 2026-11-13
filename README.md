@@ -4,47 +4,24 @@ Technical assessment for the Data Craftsperson role at Incubyte.
 
 Loads member profiles and partner redemptions, checks them, and writes one table per country. A person who appears in two countries is kept in the latest one only when we can tell it is the same person.
 
-## How to run
+The demo runs in Snowflake. Setup and the one entrypoint are in `snowflake/README.md`.
 
-```bash
-make setup
-make test
-make run
+```sql
+CALL bronze.run_pipeline();
 ```
 
-`make run` restores every file from `MONITORING_DATE` in `local/pipeline.env` through yesterday. It copies what is missing into `outputs/bronze/<date>/`, then writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. A day that is already complete is skipped. A day with no file is not a gap. The sample monitoring date is `2024-01-15`.
+No date means every source file from 15 Jan 2024 through yesterday. A day with no file is skipped. Bronze must pass before silver. Quality must pass before gold.
 
-On the sample files the run writes 5 country tables (12 members), 2 quarantined rows, 1 review row (Mike), and 2 redemptions joined to Elena.
-
-## What runs where
-
-- **Local** (`local/`) is the pipeline you can run and demo. `local/src/` is bronze, silver, gold and the one-day pipeline. `local/utils/backfill.py` decides which days to run. `make test` covers it.
-- **Snowflake** (`snowflake/`) is the same design for a warehouse. Setup and run steps are in `snowflake/README.md`. After the DDL and stage are in place, `CALL bronze.run_pipeline(DATE '2024-01-15')` lands the day, audits it, loads silver, runs the quality gate, and writes gold. `make test` does not connect to Snowflake.
-- **Shared** (`data/`, `config/iso_countries.csv`, `config/country_aliases.csv`) is used by both. `local/pipeline.env` is local only.
-- **DuckDB** (`local/tests/gold/test_sql_rules.py`) runs the shared expressions (age, stale, latest row, JSON flatten) so those rules are tested without a warehouse. DuckDB does not run the pipeline.
-
-## Approach
-
-- **Bronze** (`outputs/bronze/<date>/`): raw text, never changed. JSON kept whole. `file_audit.csv` logs every file. `schema_audit.csv` logs each column name and type, and a change when a column is new, missing, or a different type. A file that fails these checks does not go to silver.
-- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. A bad row goes to quarantine. `quality_report.csv` then checks the whole day. A FAIL stops gold. A WARN does not. Thresholds are in `local/pipeline.env`.
-- **Gold** (`outputs/gold/<date>/`): one table per country and the review list, for the file date. A redemption is filed under its transaction date, so a file from 24 Nov that contains a 25 Nov transaction creates the 25 Nov folder.
+On the sample that is 12 members, 2 quarantined rows, and 2 redemptions joined to Elena.
 
 ## Decisions
 
-1. **A person is matched across files only when name and date of birth both match.** Country files reuse ids 1, 2 and 3, so `member_id` is unique inside one file only. Same name without a date of birth (Mike) is listed in `review_possible_moves.csv` and kept in both countries.
+1. **A person is matched across files only when name and date of birth both match.** Country files reuse ids 1, 2 and 3, so `member_id` is unique inside one file only. Same name without a date of birth (Mike) is kept in both countries.
 2. **Dates and ids stay text until a format is chosen per file.** Flat-file dates are `YYYYMMDD`. Flat-file DOB and USA dates are `MMDDYYYY`. AUS and IND dates are Excel serials. `1152022` can be two dates, so it is quarantined, not guessed.
 3. **Country** on the flat file is mapped with the ISO list, then the alias file (`PHIL` → `PHL`). A code in neither is kept and marked `UNMAPPED`. On the Excel files the country is the file name.
-4. **Stale** means more than 90 days since the last flight, from the run date passed in. Exactly 90 is not stale. No flight date is stale.
+4. **Stale** means more than 90 days since the last flight. Exactly 90 is not stale. No flight date is stale.
 5. **A redemption with no member is kept** and marked `ORPHAN`.
 
-## Data problems the pipeline catches
+## Scale
 
-- Invalid date `2021-13-13` (Jonnathan) and ambiguous USA dates (John) go to quarantine.
-- `NULL` text in a date is a missing value, not a crash.
-- `03051985` keeps its leading zero.
-- `AU` becomes `AUS`. `PHIL` becomes `PHL`.
-- Duplicate ids are checked per file, not across countries.
-
-## Moving to Snowflake
-
-The rules stay the same. Files move to cloud storage under the same date prefix (`.../2024-01-15/`), `COPY INTO` or Snowpipe loads them, and a daily task runs for yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`snowflake/gold/redemptions.sql`). Each table records `created_at`, `created_by` and `modified_at`. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.
+Files sit in the Git repo and are copied onto a stage. `CALL bronze.run_pipeline()` loads yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN`. Each table records `created_at`, `created_by` and `modified_at`. At more rows you add files and a larger warehouse. You do not rewrite the SQL.

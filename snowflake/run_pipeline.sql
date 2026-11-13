@@ -1,5 +1,5 @@
 -- One entrypoint for the Snowflake pipeline.
--- Dialect: Snowflake. Same role as local/utils/backfill.py.
+-- Dialect: Snowflake.
 --
 -- CALL bronze.run_pipeline();
 --   No date: fill every source file from MONITORING_DATE through yesterday.

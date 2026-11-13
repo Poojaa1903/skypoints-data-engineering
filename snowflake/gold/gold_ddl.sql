@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS gold.redemption (
 )
 CLUSTER BY (txn_date);
 
--- One row per successful day. Same idea as outputs/gold/<date>/_SUCCESS.
+-- One row per successful day. The next run skips a day that is already SUCCESS.
 CREATE TABLE IF NOT EXISTS gold.pipeline_run (
     load_date            DATE          NOT NULL,
     finished_at          TIMESTAMP_LTZ NOT NULL,
