@@ -2,7 +2,7 @@
 
 Layout:
     data/bronze/<feed>/<load_date>/<file>
-    data/bronze/manifest.csv   one row per file landed
+    data/bronze/load_log.csv   one row per file landed (what arrived, when, checksum)
 
 Rules:
 * The file is copied byte for byte. Nothing is parsed, typed or fixed.
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-MANIFEST_COLUMNS = [
+LOG_COLUMNS = [
     "feed", "source_file", "bronze_path", "load_date",
     "sha256", "size_bytes", "loaded_at",
 ]
@@ -74,7 +74,7 @@ def land_files(input_dir: Path, bronze_dir: Path, load_date: date) -> list[Landi
             target.unlink()
             raise OSError(f"copy of {source.name} does not match the source")
 
-        _append_manifest(bronze_dir / "manifest.csv", {
+        _append_log(bronze_dir / "load_log.csv", {
             "feed": feed,
             "source_file": source.name,
             "bronze_path": target.relative_to(bronze_dir).as_posix(),
@@ -114,10 +114,10 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _append_manifest(path: Path, row: dict) -> None:
+def _append_log(path: Path, row: dict) -> None:
     is_new = not path.exists()
     with open(path, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=MANIFEST_COLUMNS)
+        writer = csv.DictWriter(f, fieldnames=LOG_COLUMNS)
         if is_new:
             writer.writeheader()
         writer.writerow(row)
