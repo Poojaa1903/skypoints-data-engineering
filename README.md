@@ -37,6 +37,17 @@ No date means every source file from 15 Jan 2024 through yesterday. A day with n
 
 On the sample that is 12 members, 2 quarantined rows, and 2 redemptions joined to Elena.
 
+## Tests
+
+After the sample day has loaded:
+
+```sql
+EXECUTE IMMEDIATE FROM @SKYPOINTS.PUBLIC."skypoints-data-engineering"/branches/dev/tests/run_checks.sql;
+CALL tests.run_checks();
+```
+
+A `PASS` result means the date rules, a duplicate id, a future flight, latest-record-wins, and the sample counts all match. A failure lists the check names. `SELECT * FROM tests.check_result WHERE status = 'FAIL'` shows the detail.
+
 ## Decisions
 
 1. **A person is matched across files only when name and date of birth both match.** Country files reuse ids 1, 2 and 3, so `member_id` is unique inside one file only. Same name without a date of birth (Mike) is kept in both countries.

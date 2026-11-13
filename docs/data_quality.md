@@ -15,6 +15,6 @@ What is wrong in the sample, and what the pipeline does with it.
 | Text `NULL` in DOB | AUS.xlsx | Treated as missing. Age is blank. Row still loads. |
 | `1052022` and `1152022` | USA.xlsx | Each can be two real dates. Quarantine, rule `..._AMBIGUOUS`. |
 | Ids 1, 2, 3 in every country file | xlsx | Not merged. Each id is scoped to its file. |
-| Mike in AUS and USA, DOB missing on one side | xlsx | Kept in both countries. One row in `review_possible_moves.csv`. |
+| Mike in AUS and USA, DOB missing on one side | xlsx | Kept in both countries. Gold has two rows for Mike. No review file is written. |
 | Same `txn_id` on a later day | JSON design | Latest `feed_date` wins. |
 | Redemption for a member not in the file yet | JSON design | Kept, `match_status = ORPHAN`. |
