@@ -2,6 +2,37 @@
 --
 -- member_parsed is every detail row, with a reject_rule when it fails.
 -- member_typed is only the rows that passed. silver_load.sql reads both.
+--
+-- USA dates are MMDDYYYY. A 7-digit value can be read two ways:
+-- 1052022 is 01/05/2022 or 10/05/2022. Those are AMBIGUOUS and rejected.
+
+CREATE OR REPLACE FUNCTION silver.us_date_is_ambiguous(s VARCHAR)
+RETURNS BOOLEAN
+AS
+$$
+    CASE
+        WHEN LENGTH(s) = 7
+         AND TRY_TO_DATE('0' || LEFT(s, 1) || SUBSTR(s, 2, 2) || SUBSTR(s, 4, 4), 'MMDDYYYY') IS NOT NULL
+         AND TRY_TO_DATE(LEFT(s, 2) || '0' || SUBSTR(s, 3, 1) || SUBSTR(s, 4, 4), 'MMDDYYYY') IS NOT NULL
+        THEN TRUE
+        ELSE FALSE
+    END
+$$;
+
+CREATE OR REPLACE FUNCTION silver.us_date_parse(s VARCHAR)
+RETURNS DATE
+AS
+$$
+    CASE
+        WHEN LENGTH(s) = 8 THEN TRY_TO_DATE(s, 'MMDDYYYY')
+        WHEN LENGTH(s) = 7 AND NOT silver.us_date_is_ambiguous(s) THEN
+            COALESCE(
+                TRY_TO_DATE('0' || LEFT(s, 1) || SUBSTR(s, 2, 2) || SUBSTR(s, 4, 4), 'MMDDYYYY'),
+                TRY_TO_DATE(LEFT(s, 2) || '0' || SUBSTR(s, 3, 1) || SUBSTR(s, 4, 4), 'MMDDYYYY')
+            )
+        ELSE NULL
+    END
+$$;
 
 CREATE OR REPLACE VIEW silver.member_parsed AS
 WITH flat AS (
@@ -21,6 +52,8 @@ WITH flat AS (
         TRY_TO_DATE(NULLIF(NULLIF(TRIM(last_flight_date), ''), 'NULL'), 'YYYYMMDD') AS last_flight_date,
         TRY_TO_DATE(NULLIF(NULLIF(TRIM(dob), ''), 'NULL'), 'MMDDYYYY') AS dob,
         IFF(UPPER(TRIM(is_active)) = 'A', TRUE, FALSE) AS is_active,
+        NULL AS enrollment_raw,
+        NULL AS flight_raw,
         OBJECT_CONSTRUCT(*) AS raw_record
     FROM bronze.member_flat_raw
     WHERE record_type = 'D'
@@ -40,21 +73,23 @@ xlsx AS (
         NULL AS state_code,
         CASE
             WHEN source_country = 'USA'
-                THEN TRY_TO_DATE(NULLIF(NULLIF(TRIM(enrollment_date_raw), ''), 'NULL'), 'MMDDYYYY')
+                THEN silver.us_date_parse(NULLIF(NULLIF(TRIM(enrollment_date_raw), ''), 'NULL'))
             ELSE DATEADD('day', TRY_TO_NUMBER(NULLIF(NULLIF(TRIM(enrollment_date_raw), ''), 'NULL')), DATE '1899-12-30')
         END AS enrollment_date,
         CASE
             WHEN source_country = 'USA'
-                THEN TRY_TO_DATE(NULLIF(NULLIF(TRIM(flight_date_raw), ''), 'NULL'), 'MMDDYYYY')
+                THEN silver.us_date_parse(NULLIF(NULLIF(TRIM(flight_date_raw), ''), 'NULL'))
             ELSE DATEADD('day', TRY_TO_NUMBER(NULLIF(NULLIF(TRIM(flight_date_raw), ''), 'NULL')), DATE '1899-12-30')
         END AS last_flight_date,
         CASE
             WHEN source_country = 'USA'
-                THEN TRY_TO_DATE(NULLIF(NULLIF(TRIM(dob_raw), ''), 'NULL'), 'MMDDYYYY')
+                THEN silver.us_date_parse(NULLIF(NULLIF(TRIM(dob_raw), ''), 'NULL'))
             WHEN NULLIF(NULLIF(TRIM(dob_raw), ''), 'NULL') IS NULL THEN NULL
             ELSE DATEADD('day', TRY_TO_NUMBER(dob_raw), DATE '1899-12-30')
         END AS dob,
         TRUE AS is_active,
+        enrollment_date_raw AS enrollment_raw,
+        flight_date_raw AS flight_raw,
         OBJECT_CONSTRUCT(*) AS raw_record
     FROM bronze.country_extract_raw
 ),
@@ -90,7 +125,9 @@ SELECT
         WHEN member_id IS NULL OR TRIM(member_id) = '' THEN 'MEMBER_ID_MISSING'
         WHEN member_name IS NULL OR TRIM(member_name) = '' THEN 'MEMBER_NAME_MISSING'
         WHEN country_status = 'MISSING' THEN 'COUNTRY_MISSING'
+        WHEN source_country = 'USA' AND silver.us_date_is_ambiguous(TRIM(enrollment_raw)) THEN 'ENROLLMENT_DATE_AMBIGUOUS'
         WHEN enrollment_date IS NULL THEN 'ENROLLMENT_DATE_INVALID'
+        WHEN source_country = 'USA' AND silver.us_date_is_ambiguous(TRIM(flight_raw)) THEN 'FLIGHT_DATE_AMBIGUOUS'
         ELSE NULL
     END AS reject_rule
 FROM resolved;
