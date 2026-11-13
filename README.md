@@ -19,7 +19,7 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 ## What runs where
 
 - **Python** (`src/bronze/`, `src/silver/`, `src/gold/`, `make run`) is the pipeline you can run and demo. `make test` covers it.
-- **Snowflake SQL** (`sql/`) is the same design for production: landing tables, staging load with age and the stale flag, latest-record split, redemption flatten, and validation queries. These need a Snowflake account, so they are not what `make test` runs.
+- **Snowflake SQL** (`sql/`) is the same design for a warehouse. Run it in this order: `bronze/bronze_ddl.sql`, `bronze/schema_audit.sql`, `silver/silver_ddl.sql`, `silver/member_typed.sql`, `silver/silver_load.sql`, `gold/gold_ddl.sql`, `gold/latest_and_split.sql`, `gold/redemptions.sql`, `silver/silver_validations.sql`. Empty bronze tables load zero rows. `make test` does not connect to Snowflake.
 - **DuckDB** (`tests/test_sql_rules.py`) runs the shared expressions (age, stale, latest row, JSON flatten) so those rules are tested without a warehouse.
 
 ## Approach

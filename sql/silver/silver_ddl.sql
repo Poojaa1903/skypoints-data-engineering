@@ -7,6 +7,21 @@
 
 CREATE SCHEMA IF NOT EXISTS silver;
 
+-- The same files the Python pipeline reads: config/iso_countries.csv
+-- and config/country_aliases.csv. Load them before silver_load.sql
+-- if you want AU -> AUS and PHIL -> PHL. An empty table does not
+-- fail the load; unknown codes stay UNMAPPED.
+CREATE TABLE IF NOT EXISTS silver.iso_country (
+    alpha2             VARCHAR,
+    alpha3             VARCHAR,
+    country_name       VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS silver.country_alias (
+    source_code        VARCHAR,
+    alpha3             VARCHAR
+);
+
 -- ---------------------------------------------------------------------
 -- Reference: every country code seen in any feed, and its status.
 -- Filled by the pipeline. A new code is inserted once, automatically.
