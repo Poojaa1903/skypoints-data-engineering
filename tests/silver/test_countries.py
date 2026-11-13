@@ -17,7 +17,7 @@ import pytest
 
 from silver.countries import CountryStatus, load_lookups, resolve_country
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 LOOKUPS = None
 
 

@@ -22,7 +22,7 @@ import pytest
 from bronze.bronze import land_files
 from pipeline import main, person_key, run
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 INPUT = ROOT / "data" / "input"
 AS_OF = date(2024, 1, 15)
 
@@ -38,7 +38,7 @@ def land(tmp_path: Path) -> Path:
 def output(tmp_path_factory):
     base = tmp_path_factory.mktemp("run")
     out = base / "out"
-    summary = run(land(base), out, AS_OF)
+    summary = run(land(base), out / "silver", out / "gold", AS_OF)
     return out, summary
 
 
@@ -63,13 +63,13 @@ def test_one_table_per_country_with_expected_counts(output):
 def test_each_country_table_is_a_file(output):
     out, _ = output
     for name in ["Table_USA", "Table_IND", "Table_AUS", "Table_PHL", "Table_CAN"]:
-        assert (out / f"{name}.csv").exists()
+        assert (out / "gold" / "2024-01-15" / f"{name}.csv").exists()
 
 
 def test_bad_rows_go_to_quarantine_not_to_tables(output):
     out, summary = output
     assert summary.quarantined == 2
-    names = {row["member_name"] for row in read_csv(out / "quarantine.csv")}
+    names = {row["member_name"] for row in read_csv(out / "silver" / "2024-01-15" / "quarantine.csv")}
     assert names == {"Jonnathan", "John"}
 
 
@@ -77,18 +77,18 @@ def test_bad_rows_go_to_quarantine_not_to_tables(output):
 
 def test_mike_is_kept_in_both_countries_and_listed_for_review(output):
     out, _ = output
-    aus = [r for r in read_csv(out / "Table_AUS.csv") if r["member_name"] == "Mike"]
-    usa = [r for r in read_csv(out / "Table_USA.csv") if r["member_name"] == "Mike"]
+    aus = [r for r in read_csv(out / "gold" / "2024-01-15" / "Table_AUS.csv") if r["member_name"] == "Mike"]
+    usa = [r for r in read_csv(out / "gold" / "2024-01-15" / "Table_USA.csv") if r["member_name"] == "Mike"]
     assert [r["member_id"] for r in aus] == ["1"]
     assert [r["member_id"] for r in usa] == ["3"]
 
-    review = read_csv(out / "review_possible_moves.csv")
+    review = read_csv(out / "gold" / "2024-01-15" / "review_possible_moves.csv")
     assert [r["name"] for r in review] == ["Mike"]
 
 
 def test_ids_1_2_3_are_not_merged_across_countries(output):
     out, _ = output
-    ind_names = {r["member_name"] for r in read_csv(out / "Table_IND.csv")}
+    ind_names = {r["member_name"] for r in read_csv(out / "gold" / "2024-01-15" / "Table_IND.csv")}
     assert {"Vikas", "Rahul", "Sameer"} <= ind_names
 
 
@@ -98,8 +98,11 @@ def test_elena_redemptions_join_to_her_usa_record(output):
     out, summary = output
     assert summary.matched_redemptions == 2
     assert summary.orphan_redemptions == 0
-    rows = read_csv(out / "redemptions.csv")
-    assert {r["txn_id"] for r in rows} == {"RX10091", "RX10092"}
+    completed = read_csv(out / "gold" / "2024-01-10" / "redemptions.csv")
+    pending = read_csv(out / "gold" / "2024-01-13" / "redemptions.csv")
+    rows = completed + pending
+    assert {r["txn_id"] for r in completed} == {"RX10091"}
+    assert {r["txn_id"] for r in pending} == {"RX10092"}
     assert {r["country_code"] for r in rows} == {"USA"}
 
 
@@ -107,7 +110,7 @@ def test_elena_redemptions_join_to_her_usa_record(output):
 
 def test_elena_row_has_age_and_stale_flag(output):
     out, _ = output
-    elena = next(r for r in read_csv(out / "Table_USA.csv") if r["member_name"] == "Elena")
+    elena = next(r for r in read_csv(out / "gold" / "2024-01-15" / "Table_USA.csv") if r["member_name"] == "Elena")
     assert elena["age"] == "38"                      # DOB 1985-03-05, as of 2024-01-15
     assert elena["is_stale_member"] == "True"        # last flight 2012-10-13
 
@@ -137,6 +140,7 @@ def test_same_id_in_different_countries_stays_separate():
 def test_cli_runs_from_bronze_and_writes_outputs(tmp_path):
     bronze = land(tmp_path)
     out = tmp_path / "out"
-    code = main(["--bronze", str(bronze), "--output", str(out), "--as-of", "2024-01-15"])
+    code = main(["--bronze", str(bronze), "--silver", str(out / "silver"),
+                 "--gold", str(out / "gold"), "--as-of", "2024-01-15"])
     assert code == 0
-    assert (out / "Table_USA.csv").exists()
+    assert (out / "gold" / "2024-01-15" / "Table_USA.csv").exists()

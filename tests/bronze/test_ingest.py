@@ -16,7 +16,7 @@ import pytest
 
 from bronze.ingest import read_country_xlsx, read_flat_file, read_redemption_json
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 INPUT = ROOT / "data" / "input"
 
 
