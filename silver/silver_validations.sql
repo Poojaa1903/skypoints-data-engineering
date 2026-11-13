@@ -43,7 +43,7 @@ FROM silver.ref_country
 WHERE country_status = 'UNMAPPED';
 
 -- 5. Fail the run only when rejections are a large share of the file.
---    Replace 0.05 with the threshold the business agrees.
+--    The limit is REJECT_FAIL in config/pipeline.env.
 SELECT
     source_file,
     rejected,
@@ -59,4 +59,8 @@ JOIN (
     FROM silver.member_stg
     GROUP BY source_file
 ) s USING (source_file)
-WHERE rejected / NULLIF(rejected + loaded, 0) > 0.05;
+WHERE rejected / NULLIF(rejected + loaded, 0) > (
+    SELECT TO_NUMBER(setting_value)
+    FROM bronze.pipeline_config
+    WHERE setting_key = 'REJECT_FAIL'
+);

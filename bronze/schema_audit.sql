@@ -43,8 +43,10 @@ DECLARE
     flat_file VARCHAR;
     country_file VARCHAR;
     redemption_file VARCHAR;
+    internal_stage VARCHAR;
 BEGIN
     day_path := TO_VARCHAR(:AS_OF, 'YYYY-MM-DD');
+    internal_stage := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'INTERNAL_STAGE');
     flat_file := 'members_' || TO_VARCHAR(:AS_OF, 'YYYYMMDD') || '.txt';
     country_file := 'country_extract_' || TO_VARCHAR(:AS_OF, 'YYYYMMDD') || '.csv';
     redemption_file := 'redemptions_' || TO_VARCHAR(:AS_OF, 'YYYYMMDD') || '.json';
@@ -73,7 +75,7 @@ BEGIN
         DELETE FROM _schema_header;
         EXECUTE IMMEDIATE
             'INSERT INTO _schema_header '
-            || 'SELECT $1 FROM @bronze.skypoints_stage/members_flat/' || :day_path || '/ '
+            || 'SELECT $1 FROM ' || :internal_stage || '/members_flat/' || :day_path || '/ '
             || '(FILE_FORMAT => ''bronze.ff_line'') '
             || 'QUALIFY ROW_NUMBER() OVER (ORDER BY METADATA$FILE_ROW_NUMBER) = 1';
         INSERT INTO _schema_cols
@@ -102,7 +104,7 @@ BEGIN
         DELETE FROM _schema_header;
         EXECUTE IMMEDIATE
             'INSERT INTO _schema_header '
-            || 'SELECT $1 FROM @bronze.skypoints_stage/country_xlsx/' || :day_path || '/ '
+            || 'SELECT $1 FROM ' || :internal_stage || '/country_xlsx/' || :day_path || '/ '
             || '(FILE_FORMAT => ''bronze.ff_line'') '
             || 'QUALIFY ROW_NUMBER() OVER (ORDER BY METADATA$FILE_ROW_NUMBER) = 1';
         INSERT INTO _schema_cols

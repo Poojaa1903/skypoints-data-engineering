@@ -14,13 +14,16 @@ In a SQL worksheet, database `SKYPOINTS`:
 4. `silver/member_typed.sql`
 5. `gold/gold_ddl.sql`
 6. `setup/stage_and_formats.sql`
-7. `setup/load_reference.sql`
-8. `bronze/load_day.sql`
-9. `silver/silver_load.sql`
-10. `silver/quality_gate.sql`
-11. `gold/latest_and_split.sql`
-12. `gold/redemptions.sql`
-13. `run_pipeline.sql`
+7. `setup/load_config.sql`
+8. `setup/load_reference.sql`
+9. `bronze/load_day.sql`
+10. `silver/silver_load.sql`
+11. `silver/quality_gate.sql`
+12. `gold/latest_and_split.sql`
+13. `gold/redemptions.sql`
+14. `run_pipeline.sql`
+
+Paths and quality limits are in `config/pipeline.env`. Change them there. The next `CALL bronze.run_pipeline()` reloads the file.
 
 Snowflake cannot read `.xlsx`. The country rows are `seed/country_extract_20240115.csv`.
 

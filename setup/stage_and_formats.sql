@@ -23,7 +23,7 @@ CREATE OR REPLACE STAGE bronze.skypoints_stage
 -- One raw line, used to read a file header for the schema check.
 CREATE OR REPLACE FILE FORMAT bronze.ff_line
     TYPE = CSV
-    FIELD_DELIMITER = NONE
+    FIELD_DELIMITER = 'NONE'
     SKIP_HEADER = 0
     EMPTY_FIELD_AS_NULL = FALSE;
 
@@ -41,6 +41,15 @@ CREATE OR REPLACE FILE FORMAT bronze.ff_pipe
 CREATE OR REPLACE FILE FORMAT bronze.ff_json
     TYPE = JSON
     STRIP_OUTER_ARRAY = FALSE;
+
+-- config/pipeline.env is KEY=VALUE. Comment lines start with #.
+CREATE OR REPLACE FILE FORMAT bronze.ff_env
+    TYPE = CSV
+    FIELD_DELIMITER = '='
+    SKIP_HEADER = 0
+    TRIM_SPACE = TRUE
+    EMPTY_FIELD_AS_NULL = TRUE
+    ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
 
 -- Country extract seed and reference CSVs.
 CREATE OR REPLACE FILE FORMAT bronze.ff_csv

@@ -1,10 +1,10 @@
 -- Dataset quality gate.
 -- Dialect: Snowflake.
 --
+-- Limits come from config/pipeline.env (loaded into bronze.pipeline_config).
 -- Writes silver.quality_report for the day. Any FAIL means gold must not run.
--- Small files (under 20 rows) warn on
--- reject rate instead of failing, so one bad row in a 3-row sample does not
--- stop the demo.
+-- Small files (under REJECT_MIN_ROWS) warn on reject rate instead of failing,
+-- so one bad row in a 3-row sample does not stop the demo.
 --
 -- CALL silver.quality_gate(DATE '2024-01-15');
 
@@ -15,11 +15,47 @@ EXECUTE AS CALLER
 AS
 $$
 DECLARE
+    reject_warn FLOAT;
+    reject_fail FLOAT;
+    reject_min_rows NUMBER;
+    unmapped_fail FLOAT;
+    row_drop_fail FLOAT;
+    null_fail FLOAT;
+    today_rows NUMBER;
+    prev_rows NUMBER;
+    prev_day DATE;
     fail_count NUMBER;
 BEGIN
+    reject_warn := (SELECT TO_NUMBER(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'REJECT_WARN');
+    reject_fail := (SELECT TO_NUMBER(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'REJECT_FAIL');
+    reject_min_rows := (SELECT TO_NUMBER(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'REJECT_MIN_ROWS');
+    unmapped_fail := (SELECT TO_NUMBER(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'UNMAPPED_FAIL');
+    row_drop_fail := (SELECT TO_NUMBER(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'ROW_DROP_FAIL');
+    null_fail := (SELECT TO_NUMBER(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'NULL_FAIL');
+
+    today_rows := (
+        SELECT COUNT(*) FROM silver.member_stg WHERE load_date = :AS_OF
+    ) + (
+        SELECT COUNT(*) FROM silver.member_quarantine WHERE load_date = :AS_OF
+    );
+    prev_day := (
+        SELECT MAX(load_date) FROM (
+            SELECT load_date FROM silver.member_stg WHERE load_date < :AS_OF
+            UNION
+            SELECT load_date FROM silver.member_quarantine WHERE load_date < :AS_OF
+        )
+    );
+    prev_rows := NULL;
+    IF (prev_day IS NOT NULL) THEN
+        prev_rows := (
+            SELECT COUNT(*) FROM silver.member_stg WHERE load_date = :prev_day
+        ) + (
+            SELECT COUNT(*) FROM silver.member_quarantine WHERE load_date = :prev_day
+        );
+    END IF;
+
     DELETE FROM silver.quality_report WHERE load_date = :AS_OF;
 
-    -- Reconciliation and reject rate per source file.
     INSERT INTO silver.quality_report (load_date, check_name, status, value, threshold, detail)
     WITH volumes AS (
         SELECT
@@ -52,14 +88,15 @@ BEGIN
         'reject_rate:' || source_file,
         CASE
             WHEN rejected = 0 THEN 'PASS'
-            WHEN bronze_rows < 20 AND rejected / NULLIF(bronze_rows, 0) > 0.02 THEN 'WARN'
-            WHEN bronze_rows < 20 THEN 'PASS'
-            WHEN rejected / NULLIF(bronze_rows, 0) > 0.05 THEN 'FAIL'
-            WHEN rejected / NULLIF(bronze_rows, 0) > 0.02 THEN 'WARN'
+            WHEN bronze_rows < :reject_min_rows AND rejected / NULLIF(bronze_rows, 0) > :reject_warn THEN 'WARN'
+            WHEN bronze_rows < :reject_min_rows THEN 'PASS'
+            WHEN rejected / NULLIF(bronze_rows, 0) > :reject_fail THEN 'FAIL'
+            WHEN rejected / NULLIF(bronze_rows, 0) > :reject_warn THEN 'WARN'
             ELSE 'PASS'
         END,
         TO_VARCHAR(ROUND(100.0 * rejected / NULLIF(bronze_rows, 0), 1)) || '%',
-        'warn > 2%, fail > 5% from 20 rows',
+        'warn > ' || TO_VARCHAR(:reject_warn * 100) || '%, fail > ' || TO_VARCHAR(:reject_fail * 100)
+            || '% from ' || TO_VARCHAR(:reject_min_rows) || ' rows',
         rejected || ' of ' || bronze_rows
     FROM volumes
     UNION ALL
@@ -68,11 +105,11 @@ BEGIN
         'unmapped_countries',
         CASE
             WHEN unmapped = 0 THEN 'PASS'
-            WHEN unmapped / NULLIF(loaded, 0) > 0.01 THEN 'FAIL'
+            WHEN unmapped / NULLIF(loaded, 0) > :unmapped_fail THEN 'FAIL'
             ELSE 'WARN'
         END,
         TO_VARCHAR(unmapped),
-        'fail > 1% of loaded members',
+        'fail > ' || TO_VARCHAR(:unmapped_fail * 100) || '% of loaded members',
         unmapped || ' of ' || loaded
     FROM (
         SELECT
@@ -84,11 +121,37 @@ BEGIN
     UNION ALL
     SELECT
         :AS_OF,
+        'null_mandatory',
+        CASE
+            WHEN missing = 0 THEN 'PASS'
+            WHEN missing / NULLIF(loaded, 0) > :null_fail THEN 'FAIL'
+            ELSE 'WARN'
+        END,
+        TO_VARCHAR(missing),
+        'fail > ' || TO_VARCHAR(:null_fail * 100) || '% missing member id, name, country, or enrollment',
+        missing || ' of ' || loaded
+    FROM (
+        SELECT
+            COUNT_IF(
+                member_id IS NULL OR member_name IS NULL
+                OR country_code IS NULL OR enrollment_date IS NULL
+            ) AS missing,
+            COUNT(*) AS loaded
+        FROM silver.member_stg
+        WHERE load_date = :AS_OF
+    )
+    UNION ALL
+    SELECT
+        :AS_OF,
         'row_count',
-        'PASS',
-        TO_VARCHAR((SELECT COUNT(*) FROM silver.member_stg WHERE load_date = :AS_OF)),
-        'fail if drop > 50% vs previous day',
-        'first day or within threshold';
+        CASE
+            WHEN :prev_rows IS NULL OR :prev_rows = 0 THEN 'PASS'
+            WHEN (:prev_rows - :today_rows) / :prev_rows::FLOAT > :row_drop_fail THEN 'FAIL'
+            ELSE 'PASS'
+        END,
+        TO_VARCHAR(:today_rows),
+        'fail if drop > ' || TO_VARCHAR(:row_drop_fail * 100) || '% vs previous day',
+        IFF(:prev_rows IS NULL, 'first day', :today_rows || ' vs ' || :prev_rows);
 
     fail_count := (
         SELECT COUNT(*) FROM silver.quality_report

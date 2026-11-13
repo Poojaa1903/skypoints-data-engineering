@@ -18,11 +18,13 @@ AS
 $$
 DECLARE
     day_path VARCHAR;
+    internal_stage VARCHAR;
     flat_count NUMBER;
     country_count NUMBER;
     redemption_count NUMBER;
 BEGIN
     day_path := TO_VARCHAR(:AS_OF, 'YYYY-MM-DD');
+    internal_stage := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'INTERNAL_STAGE');
 
     DELETE FROM bronze.member_flat_raw WHERE load_date = :AS_OF;
     DELETE FROM bronze.country_extract_raw WHERE load_date = :AS_OF;
@@ -35,7 +37,7 @@ BEGIN
     -- Flat member file. Leading "|" makes the first CSV field empty.
     EXECUTE IMMEDIATE
         'COPY INTO bronze.flat_landing '
-        || 'FROM @bronze.skypoints_stage/members_flat/' || :day_path || '/ '
+        || 'FROM ' || :internal_stage || '/members_flat/' || :day_path || '/ '
         || 'FILE_FORMAT = (FORMAT_NAME = bronze.ff_pipe) '
         || 'ON_ERROR = ''ABORT_STATEMENT''';
 
@@ -59,7 +61,7 @@ BEGIN
     -- Country extracts. The seed CSV keeps the Excel values as text.
     EXECUTE IMMEDIATE
         'COPY INTO bronze.country_landing '
-        || 'FROM @bronze.skypoints_stage/country_xlsx/' || :day_path || '/ '
+        || 'FROM ' || :internal_stage || '/country_xlsx/' || :day_path || '/ '
         || 'FILE_FORMAT = (FORMAT_NAME = bronze.ff_csv) '
         || 'ON_ERROR = ''ABORT_STATEMENT''';
 
@@ -81,7 +83,7 @@ BEGIN
     -- Redemption JSON. One object per file; payload kept as VARIANT.
     EXECUTE IMMEDIATE
         'COPY INTO bronze.redemption_landing '
-        || 'FROM @bronze.skypoints_stage/redemptions/' || :day_path || '/ '
+        || 'FROM ' || :internal_stage || '/redemptions/' || :day_path || '/ '
         || 'FILE_FORMAT = (FORMAT_NAME = bronze.ff_json) '
         || 'ON_ERROR = ''ABORT_STATEMENT''';
 

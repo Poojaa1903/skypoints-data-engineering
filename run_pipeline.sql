@@ -9,18 +9,8 @@
 -- skipped. Bronze must pass before silver runs. Quality must pass before
 -- gold runs. A failed day does not stop the later days.
 --
--- Source files are read from the Git repository stage named in
--- bronze.pipeline_config. Change source_stage if SHOW GIT REPOSITORIES
--- printed a different name.
-
-CREATE TABLE IF NOT EXISTS bronze.pipeline_config (
-    monitoring_date    DATE          NOT NULL,
-    source_stage       VARCHAR       NOT NULL
-);
-
-INSERT INTO bronze.pipeline_config (monitoring_date, source_stage)
-SELECT DATE '2024-01-15', '@skypoints_data_engineering/branches/dev'
-WHERE NOT EXISTS (SELECT 1 FROM bronze.pipeline_config);
+-- Paths and quality limits live in config/pipeline.env.
+-- This procedure reloads that file, then reads bronze.pipeline_config.
 
 CREATE OR REPLACE PROCEDURE bronze.run_pipeline(AS_OF DATE DEFAULT NULL)
 RETURNS VARCHAR
@@ -32,6 +22,10 @@ DECLARE
     start_day DATE;
     end_day DATE;
     source_stage VARCHAR;
+    internal_stage VARCHAR;
+    data_dir VARCHAR;
+    seed_dir VARCHAR;
+    config_dir VARCHAR;
     cur DATE;
     ymd VARCHAR;
     day_path VARCHAR;
@@ -43,9 +37,17 @@ DECLARE
     redemption_count NUMBER;
     summary VARCHAR;
 BEGIN
-    SELECT monitoring_date, source_stage
-      INTO :start_day, :source_stage
-    FROM bronze.pipeline_config;
+    CALL bronze.load_config();
+    IF ((SELECT COUNT(*) FROM bronze.pipeline_config WHERE setting_key = 'REJECT_FAIL') = 0) THEN
+        RETURN 'CONFIG MISSING. Check config/pipeline.env and SOURCE_STAGE.';
+    END IF;
+
+    start_day := (SELECT TO_DATE(setting_value) FROM bronze.pipeline_config WHERE setting_key = 'MONITORING_DATE');
+    source_stage := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'SOURCE_STAGE');
+    internal_stage := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'INTERNAL_STAGE');
+    data_dir := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'DATA_DIR');
+    seed_dir := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'SEED_DIR');
+    config_dir := (SELECT setting_value FROM bronze.pipeline_config WHERE setting_key = 'CONFIG_DIR');
 
     end_day := COALESCE(:AS_OF, DATEADD('day', -1, CURRENT_DATE()));
     IF (end_day < start_day) THEN
@@ -55,17 +57,17 @@ BEGIN
 
     CREATE OR REPLACE TEMPORARY TABLE _source_files (file_name VARCHAR);
 
-    EXECUTE IMMEDIATE 'LIST ' || :source_stage || '/data/';
+    EXECUTE IMMEDIATE 'LIST ' || :source_stage || '/' || :data_dir || '/';
     INSERT INTO _source_files
     SELECT "name" FROM TABLE(RESULT_SCAN(:SQLID));
 
-    EXECUTE IMMEDIATE 'LIST ' || :source_stage || '/seed/';
+    EXECUTE IMMEDIATE 'LIST ' || :source_stage || '/' || :seed_dir || '/';
     INSERT INTO _source_files
     SELECT "name" FROM TABLE(RESULT_SCAN(:SQLID));
 
     EXECUTE IMMEDIATE
-        'COPY FILES INTO @bronze.skypoints_stage/reference/ '
-        || 'FROM ' || :source_stage || '/config/ '
+        'COPY FILES INTO ' || :internal_stage || '/reference/ '
+        || 'FROM ' || :source_stage || '/' || :config_dir || '/ '
         || 'FILES = (''iso_countries.csv'', ''country_aliases.csv'') '
         || 'OVERWRITE = TRUE';
     CALL silver.load_reference();
@@ -97,8 +99,8 @@ BEGIN
                     WHERE file_name ILIKE '%members_' || :ymd || '.txt'
                 )) THEN
                     EXECUTE IMMEDIATE
-                        'COPY FILES INTO @bronze.skypoints_stage/members_flat/' || :day_path || '/ '
-                        || 'FROM ' || :source_stage || '/data/ '
+                        'COPY FILES INTO ' || :internal_stage || '/members_flat/' || :day_path || '/ '
+                        || 'FROM ' || :source_stage || '/' || :data_dir || '/ '
                         || 'FILES = (''members_' || :ymd || '.txt'') OVERWRITE = TRUE';
                 END IF;
 
@@ -107,8 +109,8 @@ BEGIN
                     WHERE file_name ILIKE '%redemptions_' || :ymd || '.json'
                 )) THEN
                     EXECUTE IMMEDIATE
-                        'COPY FILES INTO @bronze.skypoints_stage/redemptions/' || :day_path || '/ '
-                        || 'FROM ' || :source_stage || '/data/ '
+                        'COPY FILES INTO ' || :internal_stage || '/redemptions/' || :day_path || '/ '
+                        || 'FROM ' || :source_stage || '/' || :data_dir || '/ '
                         || 'FILES = (''redemptions_' || :ymd || '.json'') OVERWRITE = TRUE';
                 END IF;
 
@@ -117,8 +119,8 @@ BEGIN
                     WHERE file_name ILIKE '%country_extract_' || :ymd || '.csv'
                 )) THEN
                     EXECUTE IMMEDIATE
-                        'COPY FILES INTO @bronze.skypoints_stage/country_xlsx/' || :day_path || '/ '
-                        || 'FROM ' || :source_stage || '/seed/ '
+                        'COPY FILES INTO ' || :internal_stage || '/country_xlsx/' || :day_path || '/ '
+                        || 'FROM ' || :source_stage || '/' || :seed_dir || '/ '
                         || 'FILES = (''country_extract_' || :ymd || '.csv'') OVERWRITE = TRUE';
                 END IF;
 
