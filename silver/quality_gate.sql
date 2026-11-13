@@ -27,8 +27,15 @@ BEGIN
             COUNT(*) AS bronze_rows,
             SUM(IFF(reject_rule IS NULL, 1, 0)) AS loaded,
             SUM(IFF(reject_rule IS NOT NULL, 1, 0)) AS rejected
-        FROM silver.member_parsed
-        WHERE load_date = :AS_OF
+        FROM (
+            SELECT source_file, NULL AS reject_rule
+            FROM silver.member_stg
+            WHERE load_date = :AS_OF
+            UNION ALL
+            SELECT source_file, reject_rule
+            FROM silver.member_quarantine
+            WHERE load_date = :AS_OF
+        )
         GROUP BY source_file
     )
     SELECT

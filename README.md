@@ -4,7 +4,27 @@ Technical assessment for the Data Craftsperson role at Incubyte.
 
 Loads member profiles and partner redemptions, checks them, and writes one table per country. A person who appears in two countries is kept in the latest one only when we can tell it is the same person.
 
-The demo runs in Snowflake. Setup and the one entrypoint are in `snowflake/README.md`.
+## One-time setup
+
+In a SQL worksheet, database `SKYPOINTS`:
+
+1. `bronze/bronze_ddl.sql`
+2. `bronze/schema_audit.sql`
+3. `silver/silver_ddl.sql`
+4. `silver/member_typed.sql`
+5. `gold/gold_ddl.sql`
+6. `setup/stage_and_formats.sql`
+7. `setup/load_reference.sql`
+8. `bronze/load_day.sql`
+9. `silver/silver_load.sql`
+10. `silver/quality_gate.sql`
+11. `gold/latest_and_split.sql`
+12. `gold/redemptions.sql`
+13. `run_pipeline.sql`
+
+Snowflake cannot read `.xlsx`. The country rows are `seed/country_extract_20240115.csv`.
+
+## Run
 
 ```sql
 CALL bronze.run_pipeline();
@@ -17,11 +37,7 @@ On the sample that is 12 members, 2 quarantined rows, and 2 redemptions joined t
 ## Decisions
 
 1. **A person is matched across files only when name and date of birth both match.** Country files reuse ids 1, 2 and 3, so `member_id` is unique inside one file only. Same name without a date of birth (Mike) is kept in both countries.
-2. **Dates and ids stay text until a format is chosen per file.** Flat-file dates are `YYYYMMDD`. Flat-file DOB and USA dates are `MMDDYYYY`. AUS and IND dates are Excel serials. `1152022` can be two dates, so it is quarantined, not guessed.
+2. **Dates and ids stay text until silver parses them.** Flat-file dates are `YYYYMMDD`. Flat-file DOB and USA dates are `MMDDYYYY`. AUS and IND dates are Excel serials. `1152022` can be two dates, so it is quarantined, not guessed.
 3. **Country** on the flat file is mapped with the ISO list, then the alias file (`PHIL` → `PHL`). A code in neither is kept and marked `UNMAPPED`. On the Excel files the country is the file name.
 4. **Stale** means more than 90 days since the last flight. Exactly 90 is not stale. No flight date is stale.
 5. **A redemption with no member is kept** and marked `ORPHAN`.
-
-## Scale
-
-Files sit in the Git repo and are copied onto a stage. `CALL bronze.run_pipeline()` loads yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN`. Each table records `created_at`, `created_by` and `modified_at`. At more rows you add files and a larger warehouse. You do not rewrite the SQL.

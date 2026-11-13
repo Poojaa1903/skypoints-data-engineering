@@ -1,6 +1,5 @@
 -- One entrypoint for the Snowflake pipeline.
--- Dialect: Snowflake.
---
+
 -- CALL bronze.run_pipeline();
 --   No date: fill every source file from MONITORING_DATE through yesterday.
 -- CALL bronze.run_pipeline(DATE '2024-01-15');
@@ -60,7 +59,7 @@ BEGIN
     INSERT INTO _source_files
     SELECT "name" FROM TABLE(RESULT_SCAN(:SQLID));
 
-    EXECUTE IMMEDIATE 'LIST ' || :source_stage || '/snowflake/seed/';
+    EXECUTE IMMEDIATE 'LIST ' || :source_stage || '/seed/';
     INSERT INTO _source_files
     SELECT "name" FROM TABLE(RESULT_SCAN(:SQLID));
 
@@ -119,15 +118,15 @@ BEGIN
                 )) THEN
                     EXECUTE IMMEDIATE
                         'COPY FILES INTO @bronze.skypoints_stage/country_xlsx/' || :day_path || '/ '
-                        || 'FROM ' || :source_stage || '/snowflake/seed/ '
+                        || 'FROM ' || :source_stage || '/seed/ '
                         || 'FILES = (''country_extract_' || :ymd || '.csv'') OVERWRITE = TRUE';
                 END IF;
 
                 CALL bronze.load_day(:cur);
                 CALL bronze.audit_day(:cur);
                 failed_files := (
-                    SELECT COUNT(*) FROM bronze.file_audit
-                    WHERE load_date = :cur AND status = 'FAILED'
+                    SELECT COUNT(*) FROM bronze.schema_audit
+                    WHERE load_date = :cur AND change = 'FAILED'
                 );
 
                 IF (failed_files > 0) THEN

@@ -3,7 +3,7 @@
 -- other rows; these rows are the ones that belong in quarantine.
 -- Dialect: Snowflake. Run after silver is loaded.
 --
--- The runnable gate is silver.quality_gate (snowflake/silver/quality_gate.sql).
+-- The runnable gate is silver.quality_gate (silver/quality_gate.sql).
 -- A FAIL there stops gold.
 -- These queries are ad-hoc checks you can run by hand in a worksheet.
 

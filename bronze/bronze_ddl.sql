@@ -7,7 +7,6 @@
 --   * Every table carries audit columns so any row can be traced
 --     back to its file and load run.
 --   * Nothing is updated or deleted in bronze. Fixes happen in silver.
--- Dialect: Snowflake.
 -- =====================================================================
 
 CREATE SCHEMA IF NOT EXISTS bronze;

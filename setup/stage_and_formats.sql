@@ -20,6 +20,13 @@ CREATE SCHEMA IF NOT EXISTS gold;
 CREATE OR REPLACE STAGE bronze.skypoints_stage
     COMMENT = 'Internal stage for SkyPoints sample and daily files';
 
+-- One raw line, used to read a file header for the schema check.
+CREATE OR REPLACE FILE FORMAT bronze.ff_line
+    TYPE = CSV
+    FIELD_DELIMITER = NONE
+    SKIP_HEADER = 0
+    EMPTY_FIELD_AS_NULL = FALSE;
+
 -- Flat member file: pipe-delimited, leading "|", first header row skipped.
 CREATE OR REPLACE FILE FORMAT bronze.ff_pipe
     TYPE = CSV

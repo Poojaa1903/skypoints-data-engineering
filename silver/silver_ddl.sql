@@ -8,7 +8,7 @@
 CREATE SCHEMA IF NOT EXISTS silver;
 
 -- config/iso_countries.csv
--- and config/country_aliases.csv. Load them before silver_load.sql
+-- and config/country_aliases.csv. Load them before silver.load_day.
 -- if you want AU -> AUS and PHIL -> PHL. An empty table does not
 -- fail the load; unknown codes stay UNMAPPED.
 CREATE TABLE IF NOT EXISTS silver.iso_country (
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS silver.ref_country (
 -- Member staging: typed, cleaned, with derived fields.
 -- One row per source record that passed validation.
 -- member_id is unique inside one file only. Across files, a person is
--- name + date of birth (see snowflake/gold/latest_and_split.sql).
+-- name + date of birth (see gold/latest_and_split.sql).
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS silver.member_stg (
     -- lineage

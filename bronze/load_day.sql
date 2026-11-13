@@ -6,7 +6,7 @@
 --
 --   PUT file://data/members_20240115.txt @bronze.skypoints_stage/members_flat/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 --   PUT file://data/redemptions_20240115.json @bronze.skypoints_stage/redemptions/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
---   PUT file://snowflake/seed/country_extract_20240115.csv @bronze.skypoints_stage/country_xlsx/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+--   PUT file://seed/country_extract_20240115.csv @bronze.skypoints_stage/country_xlsx/2024-01-15/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 --
 -- CALL bronze.load_day(DATE '2024-01-15');
 
