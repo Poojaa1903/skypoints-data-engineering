@@ -7,7 +7,7 @@ Steps:
 4. Pick the latest record for each person (identity rule below).
 5. Split winners into one table per country.
 6. Flatten, dedupe and join redemptions.
-7. Write CSV outputs and a summary.
+7. Write CSV outputs under the date folder they belong to, and a summary.
 
 Identity rule: a person is matched across sources only when name and DOB
 both match. Otherwise the ID is scoped to its own file, so AUS ID 1 is never
@@ -35,7 +35,7 @@ from silver.countries import load_lookups, resolve_country
 from silver.derived import age_on, is_stale_member
 from silver.parsers import DateFormat, parse_date
 from silver.validations import RawMember, SourceFormats, duplicate_keys, validate_member
-from settings import load_paths
+from settings import load_paths, previous_day
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config"
 
@@ -92,10 +92,16 @@ def person_key(name: str | None, dob: date | None, *, scope: str, member_id: str
 
 
 def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_dir: Path = DEFAULT_CONFIG) -> PipelineSummary:
-    """Read the files landed in bronze for `as_of` (the load date) and write silver and gold."""
+    """Read the files landed in bronze for `as_of` and write silver and gold under that date.
+
+    A redemption whose transaction date is a different day is written to
+    that day's folder. Member rows stay with the file date: date of birth,
+    enrollment and last flight are facts about the person, not the day
+    the extract belongs to.
+    """
     lookups = load_lookups(config_dir / "iso_countries.csv", config_dir / "country_aliases.csv")
-    silver_dir.mkdir(parents=True, exist_ok=True)
-    gold_dir.mkdir(parents=True, exist_ok=True)
+    silver_day = _day_dir(silver_dir, as_of)
+    gold_day = _day_dir(gold_dir, as_of)
 
     quarantine: list[dict] = []
     candidates: list[Candidate] = []
@@ -182,12 +188,12 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
     summary = PipelineSummary(removals=len(gold.removals))
     for table, members in sorted(gold.tables.items()):
         cands = [by_location[(m.source_file, m.row_num)] for m in members]
-        _write_table(gold_dir / f"{table}.csv", cands, as_of)
+        _write_table(gold_day / f"{table}.csv", cands, as_of)
         summary.tables[table] = len(cands)
 
     # Review list: same name, different person keys (not merged)
     review = _review_rows(candidates)
-    _write_csv(gold_dir / "review_possible_moves.csv", ["name", "countries", "member_ids"], review)
+    _write_csv(gold_day / "review_possible_moves.csv", ["name", "countries", "member_ids"], review)
     summary.review_items = len(review)
 
     # 6. Redemptions
@@ -205,12 +211,12 @@ def run(bronze_dir: Path, silver_dir: Path, gold_dir: Path, as_of: date, config_
         if c.scope == "FLAT" and c.key in result.winners
     }
     joined = join_to_members(txns, flat_winner)
-    _write_redemptions(gold_dir / "redemptions.csv", joined)
+    _write_redemptions_by_date(gold_dir, joined, as_of)
     summary.matched_redemptions = len(joined.matched)
     summary.orphan_redemptions = len(joined.orphans)
 
     _write_csv(
-        silver_dir / "quarantine.csv",
+        silver_day / "quarantine.csv",
         ["source_file", "row_num", "member_id", "member_name", "rules", "detail"],
         quarantine,
     )
@@ -228,12 +234,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="where quarantine and cleaned rows are written")
     parser.add_argument("--gold", default=paths["GOLD_DIR"], type=Path,
                         help="where country tables, review and redemptions are written")
-    parser.add_argument("--as-of", required=True, type=date.fromisoformat)
+    parser.add_argument("--as-of", default=previous_day().isoformat(), type=date.fromisoformat,
+                        help="run date, default yesterday")
     args = parser.parse_args(argv)
 
     summary = run(args.bronze, args.silver, args.gold, args.as_of)
-    print(f"Silver written to {args.silver}")
-    print(f"Gold tables written to {args.gold}:")
+    print(f"Run date {args.as_of.isoformat()}")
+    print(f"Silver written to {args.silver / args.as_of.isoformat()}")
+    print(f"Gold tables written to {args.gold / args.as_of.isoformat()}:")
     for table, count in summary.tables.items():
         print(f"  {table}: {count} members")
     print(f"Quarantined rows: {summary.quarantined}")
@@ -272,14 +280,37 @@ def _write_table(path: Path, cands: list[Candidate], as_of: date) -> None:
     _write_csv(path, TABLE_COLUMNS, rows)
 
 
-def _write_redemptions(path: Path, joined) -> None:
-    rows = []
+def _write_redemptions_by_date(gold_dir: Path, joined, as_of: date) -> None:
+    """One redemptions file per transaction date.
+
+    A file dated 2024-01-15 that contains a transaction on 2024-01-10
+    writes that row under 2024-01-10, not under the file date.
+    """
+    columns = ["member_id", "feed_date", "txn_id", "txn_date", "partner",
+               "miles_redeemed", "status", "country_code", "match"]
+    by_day: dict[date, list[dict]] = {}
     for txn, country in joined.matched:
-        rows.append(_txn_row(txn, country, "MATCHED"))
+        by_day.setdefault(_event_day(txn.txn_date, as_of), []).append(_txn_row(txn, country, "MATCHED"))
     for txn in joined.orphans:
-        rows.append(_txn_row(txn, "", "ORPHAN"))
-    _write_csv(path, ["member_id", "feed_date", "txn_id", "txn_date", "partner",
-                      "miles_redeemed", "status", "country_code", "match"], rows)
+        by_day.setdefault(_event_day(txn.txn_date, as_of), []).append(_txn_row(txn, "", "ORPHAN"))
+    for day, rows in sorted(by_day.items()):
+        _write_csv(_day_dir(gold_dir, day) / "redemptions.csv", columns, rows)
+
+
+def _event_day(raw: str | None, fallback: date) -> date:
+    """Transaction date when it parses. Otherwise the run date."""
+    if not raw:
+        return fallback
+    try:
+        return parse_date(raw, DateFormat.YYYYMMDD) or fallback
+    except ValueError:
+        return fallback
+
+
+def _day_dir(root: Path, day: date) -> Path:
+    folder = root / day.isoformat()
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
 
 
 def _txn_row(txn: Transaction, country: str, match: str) -> dict:

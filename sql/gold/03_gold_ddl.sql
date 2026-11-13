@@ -22,9 +22,12 @@ CREATE TABLE IF NOT EXISTS gold.member (
     dob                DATE,
     age                NUMBER,
     is_stale_member    BOOLEAN       NOT NULL,
-    load_date          DATE          NOT NULL
+    load_date          DATE          NOT NULL,  -- the file date; also the folder name
+    created_at         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by         VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 )
-CLUSTER BY (country_code);
+CLUSTER BY (load_date, country_code);
 
 -- Country tables the brief asks for. Each is a view over gold.member.
 -- A country that shows up later gets the same view, created from its code.
@@ -44,5 +47,9 @@ CREATE TABLE IF NOT EXISTS gold.redemption (
     miles_redeemed     NUMBER,
     status             VARCHAR,
     country_code       VARCHAR,                 -- NULL when the member is not in gold yet
-    match_status       VARCHAR       NOT NULL   -- MATCHED / ORPHAN
-);
+    match_status       VARCHAR       NOT NULL,  -- MATCHED / ORPHAN
+    created_at         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by         VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+)
+CLUSTER BY (txn_date);

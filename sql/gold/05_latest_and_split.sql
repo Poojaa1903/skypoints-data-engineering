@@ -6,7 +6,11 @@
 -- Ranking: latest flight date (enrollment date if the flight is missing),
 -- then later file date, then higher row number.
 
-INSERT OVERWRITE INTO gold.member
+INSERT OVERWRITE INTO gold.member (
+    member_key, member_id, source_file, source_scope, member_name, tier_code,
+    country_code, country_status, enrollment_date, last_flight_date, dob,
+    age, is_stale_member, load_date
+)
 SELECT
     member_key, member_id, source_file, source_scope, member_name, tier_code,
     country_code, country_status, enrollment_date, last_flight_date, dob,

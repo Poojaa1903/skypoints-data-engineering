@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS silver.ref_country (
     source_code        VARCHAR       NOT NULL,   -- code as it arrived, e.g. PHIL, AU, UK
     country_code       VARCHAR,                  -- resolved 3-letter code, e.g. PHL, AUS, UK
     country_status     VARCHAR       NOT NULL,   -- MAPPED / ALIAS / UNMAPPED
-    first_seen_date    DATE          NOT NULL
+    first_seen_date    DATE          NOT NULL,
+    created_at         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by         VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );
 
 -- ---------------------------------------------------------------------
@@ -47,7 +50,10 @@ CREATE TABLE IF NOT EXISTS silver.member_stg (
     country_status       VARCHAR       NOT NULL,   -- MAPPED / ALIAS / UNMAPPED / MISSING
     -- derived
     age                  NUMBER,                   -- full years on load_date
-    is_stale_member      BOOLEAN       NOT NULL    -- more than 90 days since last flight
+    is_stale_member      BOOLEAN       NOT NULL,   -- more than 90 days since last flight
+    created_at           TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by           VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at          TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 )
 CLUSTER BY (load_date);
 
@@ -61,5 +67,8 @@ CREATE TABLE IF NOT EXISTS silver.member_quarantine (
     load_date            DATE          NOT NULL,
     reject_rule          VARCHAR       NOT NULL,   -- e.g. MEMBER_ID_MISSING, DOB_AMBIGUOUS
     reject_detail        VARCHAR,                  -- human-readable explanation
-    raw_record           VARIANT                   -- the original row, unchanged
+    raw_record           VARIANT,                  -- the original row, unchanged
+    created_at           TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by           VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at          TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );

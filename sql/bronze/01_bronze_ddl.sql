@@ -34,7 +34,10 @@ CREATE TABLE IF NOT EXISTS bronze.member_flat_raw (
     state              VARCHAR,                  -- 5
     country            VARCHAR,                  -- 5, raw code, not mapped yet
     dob                VARCHAR,                  -- 8, format checked in silver
-    is_active          VARCHAR                   -- 1
+    is_active          VARCHAR,                  -- 1
+    created_at         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by         VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 )
 CLUSTER BY (load_date);
 
@@ -59,7 +62,10 @@ CREATE TABLE IF NOT EXISTS bronze.country_extract_raw (
     dob_raw                VARCHAR,                 -- Excel serial, text, or NULL (AUS has "NULL")
     enrollment_date_raw    VARCHAR,                 -- Excel serial, MMDDYYYY, or text
     flight_date_raw        VARCHAR,                 -- Excel serial, MMDDYYYY, or text
-    individual_or_corp     VARCHAR                  -- IND only: 'I' or 'C'
+    individual_or_corp     VARCHAR,                 -- IND only: 'I' or 'C'
+    created_at             TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by             VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at            TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 )
 CLUSTER BY (load_date);
 
@@ -77,7 +83,10 @@ CREATE TABLE IF NOT EXISTS bronze.redemption_raw (
     -- record
     member_id          VARCHAR,                  -- read from the JSON as text
     feed_date          VARCHAR,                  -- YYYYMMDD, text
-    payload            VARIANT       NOT NULL    -- the full JSON object, unchanged
+    payload            VARIANT       NOT NULL,   -- the full JSON object, unchanged
+    created_at         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by         VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 )
 CLUSTER BY (load_date);
 
@@ -94,5 +103,8 @@ CREATE TABLE IF NOT EXISTS bronze.load_audit (
     load_ts            TIMESTAMP_NTZ NOT NULL,
     row_count          NUMBER,
     rejected_count     NUMBER,
-    status             VARCHAR       NOT NULL    -- STARTED / LOADED / FAILED
+    status             VARCHAR       NOT NULL,   -- STARTED / LOADED / FAILED
+    created_at         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    created_by         VARCHAR       DEFAULT CURRENT_USER(),
+    modified_at        TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );

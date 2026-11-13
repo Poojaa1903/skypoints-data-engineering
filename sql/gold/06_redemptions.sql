@@ -10,7 +10,10 @@
 -- Join key: member_id as text, and only to FLAT-file members, because the
 -- country-file ids (1, 2, 3) are not global.
 
-INSERT OVERWRITE INTO gold.redemption
+INSERT OVERWRITE INTO gold.redemption (
+    member_id, feed_date, txn_id, txn_date, partner,
+    miles_redeemed, status, country_code, match_status
+)
 WITH flat AS (
     SELECT
         r.member_id::VARCHAR                          AS member_id,

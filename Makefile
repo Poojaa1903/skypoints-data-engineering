@@ -1,6 +1,8 @@
 VENV ?= .venv
 PY := $(VENV)/bin/python
-AS_OF ?= 2024-01-15
+# Daily run is yesterday. The sample files are dated 2024-01-15:
+#   make run AS_OF=2024-01-15
+AS_OF ?= $(shell date -d yesterday +%Y-%m-%d)
 
 include config/paths.env
 

@@ -12,7 +12,7 @@ make test
 make run
 ```
 
-`make run` reads `data/input/`, copies it unchanged into `outputs/bronze/`, and writes `outputs/silver/` and `outputs/gold/`. The run date is `2024-01-15`. Change it with `make run AS_OF=2024-06-01`.
+`make run` reads `data/input/`, copies each file into `outputs/bronze/<feed>/<date>/`, and writes `outputs/silver/<date>/` and `outputs/gold/<date>/`. The daily run date is yesterday. These sample files are dated 2024-01-15, so the demo is `make run AS_OF=2024-01-15`.
 
 On the sample files the run writes 5 country tables (12 members), 2 quarantined rows, 1 review row (Mike), and 2 redemptions joined to Elena.
 
@@ -24,9 +24,9 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 
 ## Approach
 
-- **Bronze** (`outputs/bronze/`): raw text, never changed. JSON kept whole. Read from `data/input/`.
-- **Silver** (`outputs/silver/`): typed rows, age, stale flag. Bad rows go to quarantine and do not stop the run.
-- **Gold** (`outputs/gold/`): one table per country, the review list, and redemptions.
+- **Bronze** (`outputs/bronze/<date>/`): raw text, never changed. JSON kept whole. The folder date is the date in the file name, or yesterday when the name has none.
+- **Silver** (`outputs/silver/<date>/`): typed rows, age, stale flag. Bad rows go to quarantine and do not stop the run.
+- **Gold** (`outputs/gold/<date>/`): one table per country and the review list, for the file date. A redemption is filed under its transaction date, so a file from 24 Nov that contains a 25 Nov transaction creates the 25 Nov folder.
 
 ## Decisions
 
@@ -46,4 +46,4 @@ On the sample files the run writes 5 country tables (12 members), 2 quarantined 
 
 ## Moving to Snowflake
 
-The rules stay the same. Files move to cloud storage, `COPY INTO` or Snowpipe loads them, JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`sql/gold/06_redemptions.sql`), and Streams and Tasks process new rows only. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.
+The rules stay the same. Files move to cloud storage under the same date prefix (`.../2024-01-15/`), `COPY INTO` or Snowpipe loads them, and a daily task runs for yesterday. JSON is a `VARIANT` flattened with `LATERAL FLATTEN` (`sql/gold/06_redemptions.sql`). Each table records `created_at`, `created_by` and `modified_at`. At billions of rows you add files and a larger warehouse. You do not rewrite the SQL.
